@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import useAuthStore from '@/store/useAuthStore'
@@ -17,6 +17,29 @@ const statusStyles = {
 }
 
 export default function OrdersPage() {
+  return (
+    <Suspense fallback={<OrdersPageFallback />}>
+      <OrdersPageContent />
+    </Suspense>
+  )
+}
+
+function OrdersPageFallback() {
+  return (
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1.5rem 5rem', fontFamily: font.family }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {[1, 2, 3].map((i) => (
+          <div key={i} style={{
+            height: '120px', borderRadius: radius.xxl,
+            backgroundColor: colors.surface, border: `1px solid ${colors.border}`,
+          }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function OrdersPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const user = useAuthStore((state) => state.user)
