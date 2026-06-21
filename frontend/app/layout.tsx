@@ -1,6 +1,7 @@
 import './globals.css'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import BottomNavBar from '@/components/BottomNavBar'
 
 export const metadata = {
   title: 'ShopHub — Discover Local Shops',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <Footer />
+        <BottomNavBar />
       </body>
     </html>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import ShopCard from '@/components/ui/ShopCard'
 import ProductCard from '@/components/ui/ProductCard'
@@ -8,16 +8,20 @@ import SectionHeader from '@/components/ui/SectionHeader'
 import { colors, font, radius } from '@/lib/styles'
 import { shopsAPI, productsAPI } from '@/lib/api'
 import useCartStore from '@/store/useCartStore'
+import {
+  Shirt, Laptop, UtensilsCrossed, Sparkles, Dumbbell, BookOpen, Home as HomeIcon, Gamepad2,
+  Search, ShoppingBag, Truck, Flame, ChevronLeft, ChevronRight,
+} from 'lucide-react'
 
 const categories = [
-  { label: 'Fashion', icon: '👗', color: '#FEF3C7' },
-  { label: 'Electronics', icon: '💻', color: '#EEF2FF' },
-  { label: 'Food', icon: '🍔', color: '#FEE2E2' },
-  { label: 'Beauty', icon: '💄', color: '#FCE7F3' },
-  { label: 'Sports', icon: '⚽', color: '#D1FAE5' },
-  { label: 'Books', icon: '📚', color: '#FEF9C3' },
-  { label: 'Home', icon: '🏠', color: '#E0F2FE' },
-  { label: 'Toys', icon: '🧸', color: '#F3E8FF' },
+  { label: 'Fashion', Icon: Shirt, color: '#FEF3C7' },
+  { label: 'Electronics', Icon: Laptop, color: '#EEF2FF' },
+  { label: 'Food', Icon: UtensilsCrossed, color: '#FEE2E2' },
+  { label: 'Beauty', Icon: Sparkles, color: '#FCE7F3' },
+  { label: 'Sports', Icon: Dumbbell, color: '#D1FAE5' },
+  { label: 'Books', Icon: BookOpen, color: '#FEF9C3' },
+  { label: 'Home', Icon: HomeIcon, color: '#E0F2FE' },
+  { label: 'Toys', Icon: Gamepad2, color: '#F3E8FF' },
 ]
 
 export default function HomePage() {
@@ -27,18 +31,25 @@ export default function HomePage() {
   const [stats, setStats] = useState({ shopCount: 0, productCount: 0 })
   const [loading, setLoading] = useState(true)
   const addItem = useCartStore((state) => state.addItem)
+  const dealsScrollRef = useRef<HTMLDivElement>(null)
 
   const handleAddToCart = (product: any) => {
     addItem({ ...product, id: product._id })
+  }
+
+  const scrollDeals = (direction: 'left' | 'right') => {
+    if (!dealsScrollRef.current) return
+    const scrollAmount = 240
+    dealsScrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' })
   }
 
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
         const [shopsRes, dealsRes, topRatedRes] = await Promise.all([
-          shopsAPI.getAll({ limit: 6, sort: 'rating' }),
-          productsAPI.getAll({ tag: 'Sale', limit: 6 }),
-          productsAPI.getAll({ sort: 'rating', limit: 6 }),
+          shopsAPI.getAll({ limit: 4, sort: 'rating' }),
+          productsAPI.getAll({ tag: 'Sale', limit: 10 }),
+          productsAPI.getAll({ sort: 'rating', limit: 4 }),
         ])
 
         setShops(shopsRes.data.shops || [])
@@ -46,7 +57,7 @@ export default function HomePage() {
         setTopRatedProducts(topRatedRes.data.products || [])
         setStats({
           shopCount: shopsRes.data.total || 0,
-          productCount: dealsRes.data.total !== undefined ? (topRatedRes.data.total || 0) : 0,
+          productCount: topRatedRes.data.total || 0,
         })
       } catch (err) {
         console.error('Failed to load homepage data', err)
@@ -66,6 +77,18 @@ export default function HomePage() {
 
   return (
     <div style={{ fontFamily: font.family }}>
+      <style>{`
+        .deals-scroll::-webkit-scrollbar { display: none; }
+        .deals-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+        .grid-2x2 {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        @media (min-width: 768px) {
+          .grid-2x2 { gap: 20px; }
+        }
+      `}</style>
 
       {/* Hero */}
       <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(1.5rem, 4vw, 3rem) 1.5rem clamp(1.25rem, 3vw, 2rem)' }}>
@@ -103,7 +126,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats — real numbers, falls back to em-dash while loading instead of fake placeholder */}
+      {/* Stats */}
       <section style={{ borderTop: `1px solid ${colors.border}`, borderBottom: `1px solid ${colors.border}`, backgroundColor: colors.white }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.25rem 1.5rem', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
           {statsDisplay.map((stat) => (
@@ -116,7 +139,7 @@ export default function HomePage() {
       </section>
 
       {/* Categories */}
-      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(2.5rem, 5vw, 4rem) 1.5rem' }}>
+      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(2rem, 5vw, 3.5rem) 1.5rem' }}>
         <SectionHeader
           title="Shop by Category"
           subtitle="Find exactly what you're looking for"
@@ -124,43 +147,61 @@ export default function HomePage() {
           linkHref="/shops"
         />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-          {categories.map((cat) => (
+          {categories.map(({ label, Icon, color }) => (
             <Link
-              key={cat.label}
-              href={`/shops?category=${cat.label.toLowerCase()}`}
+              key={label}
+              href={`/shops?category=${label.toLowerCase()}`}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: 'clamp(8px, 2vw, 16px) 4px', borderRadius: '12px', border: `1px solid ${colors.border}`, backgroundColor: colors.white, textDecoration: 'none', transition: 'all 0.2s' }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.1)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)' }}
             >
-              <div style={{ width: 'clamp(32px, 7vw, 48px)', height: 'clamp(32px, 7vw, 48px)', borderRadius: '10px', backgroundColor: cat.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(16px, 3.5vw, 24px)' }}>
-                {cat.icon}
+              <div style={{ width: 'clamp(32px, 7vw, 48px)', height: 'clamp(32px, 7vw, 48px)', borderRadius: '10px', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={20} color={colors.dark} strokeWidth={1.75} />
               </div>
-              <span style={{ fontSize: 'clamp(9px, 1.8vw, 12px)', fontWeight: '500', color: colors.dark, textAlign: 'center' }}>{cat.label}</span>
+              <span style={{ fontSize: 'clamp(9px, 1.8vw, 12px)', fontWeight: '500', color: colors.dark, textAlign: 'center' }}>{label}</span>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* Top Deals — ONLY renders if there are actual Sale-tagged products */}
+      {/* Top Deals — horizontal side-scroll, hidden if empty */}
       {loading ? (
         <DealsLoadingSkeleton />
       ) : (
         dealProducts.length > 0 && (
-          <section style={{ backgroundColor: '#FEF2F2', padding: 'clamp(2.5rem, 5vw, 4rem) 0' }}>
+          <section style={{ backgroundColor: '#FEF2F2', padding: 'clamp(2rem, 5vw, 3.5rem) 0' }}>
             <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem' }}>
-              <SectionHeader
-                title="🔥 Top Deals"
-                subtitle="Limited-time discounts you don't want to miss"
-                linkLabel="View all deals"
-                linkHref="/shops?sort=price_asc"
-              />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Flame size={20} color="#EF4444" strokeWidth={2} />
+                  <h2 style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.5rem)', fontWeight: '700', color: colors.dark, fontFamily: font.family, margin: 0 }}>
+                    Top Deals
+                  </h2>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => scrollDeals('left')} aria-label="Scroll left"
+                    style={{ width: '32px', height: '32px', borderRadius: '50%', border: `1px solid ${colors.border}`, backgroundColor: colors.white, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <ChevronLeft size={16} color={colors.dark} />
+                  </button>
+                  <button onClick={() => scrollDeals('right')} aria-label="Scroll right"
+                    style={{ width: '32px', height: '32px', borderRadius: '50%', border: `1px solid ${colors.border}`, backgroundColor: colors.white, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <ChevronRight size={16} color={colors.dark} />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                ref={dealsScrollRef}
+                className="deals-scroll"
+                style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '4px', scrollSnapType: 'x mandatory' }}
+              >
                 {dealProducts.map((product) => (
-                  <ProductCard
-                    key={product._id}
-                    product={{ ...product, id: product._id }}
-                    onAddToCart={handleAddToCart}
-                  />
+                  <div key={product._id} style={{ minWidth: '160px', maxWidth: '200px', flex: '0 0 auto', scrollSnapAlign: 'start' }}>
+                    <ProductCard
+                      product={{ ...product, id: product._id }}
+                      onAddToCart={handleAddToCart}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -168,9 +209,9 @@ export default function HomePage() {
         )
       )}
 
-      {/* Featured Shops — hidden if zero shops exist */}
+      {/* Featured Shops — 2x2 grid, hidden if empty */}
       {!loading && shops.length > 0 && (
-        <section style={{ backgroundColor: colors.surface, padding: 'clamp(2.5rem, 5vw, 4rem) 0' }}>
+        <section style={{ backgroundColor: colors.surface, padding: 'clamp(2rem, 5vw, 3.5rem) 0' }}>
           <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem' }}>
             <SectionHeader
               title="Featured Shops"
@@ -178,8 +219,8 @@ export default function HomePage() {
               linkLabel="View all"
               linkHref="/shops"
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-              {shops.map((shop) => (
+            <div className="grid-2x2">
+              {shops.slice(0, 4).map((shop) => (
                 <ShopCard
                   key={shop._id}
                   shop={{ ...shop, id: shop._id, reviews: shop.numReviews, products: shop.productCount || 0 }}
@@ -192,17 +233,17 @@ export default function HomePage() {
 
       {loading && <FeaturedShopsLoadingSkeleton />}
 
-      {/* Top Rated Products — hidden if none exist */}
+      {/* Top Rated Products — 2x2 grid, hidden if empty */}
       {!loading && topRatedProducts.length > 0 && (
-        <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(2.5rem, 5vw, 4rem) 1.5rem' }}>
+        <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(2rem, 5vw, 3.5rem) 1.5rem' }}>
           <SectionHeader
             title="Top Rated Products"
             subtitle="Loved by customers across all shops"
             linkLabel="View all"
             linkHref="/shops"
           />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
-            {topRatedProducts.map((product) => (
+          <div className="grid-2x2">
+            {topRatedProducts.slice(0, 4).map((product) => (
               <ProductCard
                 key={product._id}
                 product={{ ...product, id: product._id }}
@@ -214,38 +255,40 @@ export default function HomePage() {
       )}
 
       {/* How it works */}
-      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(2.5rem, 5vw, 4rem) 1.5rem' }}>
+      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(2rem, 5vw, 3.5rem) 1.5rem' }}>
         <SectionHeader
           title="How ShopHub Works"
           subtitle="Get started in 3 simple steps"
         />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
           {[
-            { step: '01', icon: '🔍', title: 'Browse Shops', desc: 'Explore hundreds of shops across all categories from one place.' },
-            { step: '02', icon: '🛍️', title: 'Pick Products', desc: 'Add your favorite products to cart with one click.' },
-            { step: '03', icon: '🚀', title: 'Fast Delivery', desc: 'Get your orders delivered quickly and safely to your door.' },
-          ].map((item) => (
-            <div key={item.step} style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, padding: '2rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '3rem', fontWeight: '800', color: colors.border, lineHeight: 1 }}>{item.step}</div>
-              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{item.icon}</div>
-              <h3 style={{ fontSize: font.lg, fontWeight: '700', color: colors.dark, marginBottom: '8px' }}>{item.title}</h3>
-              <p style={{ fontSize: font.base, color: colors.muted, lineHeight: '1.6' }}>{item.desc}</p>
+            { step: '01', Icon: Search, title: 'Browse Shops', desc: 'Explore hundreds of shops across all categories from one place.' },
+            { step: '02', Icon: ShoppingBag, title: 'Pick Products', desc: 'Add your favorite products to cart with one click.' },
+            { step: '03', Icon: Truck, title: 'Fast Delivery', desc: 'Get your orders delivered quickly and safely to your door.' },
+          ].map(({ step, Icon, title, desc }) => (
+            <div key={step} style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '2.5rem', fontWeight: '800', color: colors.border, lineHeight: 1 }}>{step}</div>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                <Icon size={24} color={colors.primary} strokeWidth={1.75} />
+              </div>
+              <h3 style={{ fontSize: font.lg, fontWeight: '700', color: colors.dark, marginBottom: '8px' }}>{title}</h3>
+              <p style={{ fontSize: font.base, color: colors.muted, lineHeight: '1.6' }}>{desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Seller CTA */}
-      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem clamp(3rem, 6vw, 5rem)' }}>
-        <div style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%)`, borderRadius: '24px', padding: 'clamp(2rem, 5vw, 4rem)', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', fontWeight: '800', color: 'white', marginBottom: '12px', letterSpacing: '-0.02em' }}>
+      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem clamp(2.5rem, 6vw, 4rem)' }}>
+        <div style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%)`, borderRadius: '24px', padding: 'clamp(1.75rem, 5vw, 3.5rem)', textAlign: 'center' }}>
+          <h2 style={{ fontSize: 'clamp(1.4rem, 4vw, 2.25rem)', fontWeight: '800', color: 'white', marginBottom: '12px', letterSpacing: '-0.02em' }}>
             Own a Shop? List it Free.
           </h2>
-          <p style={{ fontSize: font.md, color: '#C7D2FE', marginBottom: '2rem', maxWidth: '400px', margin: '0 auto 2rem' }}>
+          <p style={{ fontSize: font.md, color: '#C7D2FE', marginBottom: '1.75rem', maxWidth: '400px', margin: '0 auto 1.75rem' }}>
             Reach thousands of customers by listing your shop on ShopHub today. Setup takes less than 5 minutes.
           </p>
           <Link href="/seller"
-            style={{ display: 'inline-block', backgroundColor: 'white', color: colors.primary, fontWeight: '700', fontSize: font.md, padding: '14px 36px', borderRadius: radius.lg, textDecoration: 'none', transition: 'all 0.2s' }}
+            style={{ display: 'inline-block', backgroundColor: 'white', color: colors.primary, fontWeight: '700', fontSize: font.md, padding: '12px 32px', borderRadius: radius.lg, textDecoration: 'none', transition: 'all 0.2s' }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}>
             Get Started Free →
@@ -259,12 +302,12 @@ export default function HomePage() {
 
 function DealsLoadingSkeleton() {
   return (
-    <section style={{ backgroundColor: '#FEF2F2', padding: 'clamp(2.5rem, 5vw, 4rem) 0' }}>
+    <section style={{ backgroundColor: '#FEF2F2', padding: 'clamp(2rem, 5vw, 3.5rem) 0' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem' }}>
-        <div style={{ width: '180px', height: '24px', backgroundColor: colors.white, borderRadius: '8px', marginBottom: '1.5rem' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+        <div style={{ width: '140px', height: '22px', backgroundColor: colors.white, borderRadius: '8px', marginBottom: '1rem' }} />
+        <div style={{ display: 'flex', gap: '14px', overflowX: 'hidden' }}>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, overflow: 'hidden', height: '260px' }} />
+            <div key={i} style={{ minWidth: '160px', backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, overflow: 'hidden', height: '230px', flexShrink: 0 }} />
           ))}
         </div>
       </div>
@@ -274,16 +317,16 @@ function DealsLoadingSkeleton() {
 
 function FeaturedShopsLoadingSkeleton() {
   return (
-    <section style={{ backgroundColor: colors.surface, padding: 'clamp(2.5rem, 5vw, 4rem) 0' }}>
+    <section style={{ backgroundColor: colors.surface, padding: 'clamp(2rem, 5vw, 3.5rem) 0' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem' }}>
-        <div style={{ width: '180px', height: '24px', backgroundColor: colors.white, borderRadius: '8px', marginBottom: '1.5rem' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, overflow: 'hidden', height: '280px' }}>
-              <div style={{ height: '140px', backgroundColor: colors.surface }} />
-              <div style={{ padding: '16px' }}>
-                <div style={{ width: '60%', height: '16px', backgroundColor: colors.surface, borderRadius: '8px', marginBottom: '8px' }} />
-                <div style={{ width: '40%', height: '12px', backgroundColor: colors.surface, borderRadius: '8px' }} />
+        <div style={{ width: '160px', height: '22px', backgroundColor: colors.white, borderRadius: '8px', marginBottom: '1rem' }} />
+        <div className="grid-2x2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, overflow: 'hidden', height: '220px' }}>
+              <div style={{ height: '110px', backgroundColor: colors.surface }} />
+              <div style={{ padding: '14px' }}>
+                <div style={{ width: '60%', height: '14px', backgroundColor: colors.surface, borderRadius: '6px', marginBottom: '6px' }} />
+                <div style={{ width: '40%', height: '10px', backgroundColor: colors.surface, borderRadius: '6px' }} />
               </div>
             </div>
           ))}
