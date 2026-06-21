@@ -7,6 +7,7 @@ import ProductCard from '@/components/ui/ProductCard'
 import SectionHeader from '@/components/ui/SectionHeader'
 import { colors, font, radius } from '@/lib/styles'
 import { shopsAPI, productsAPI } from '@/lib/api'
+import useCartStore from '@/store/useCartStore'
 
 const categories = [
   { label: 'Fashion', icon: '👗', color: '#FEF3C7' },
@@ -25,6 +26,11 @@ export default function HomePage() {
   const [topRatedProducts, setTopRatedProducts] = useState<any[]>([])
   const [stats, setStats] = useState({ shopCount: 0, productCount: 0 })
   const [loading, setLoading] = useState(true)
+  const addItem = useCartStore((state) => state.addItem)
+
+  const handleAddToCart = (product: any) => {
+    addItem({ ...product, id: product._id })
+  }
 
   useEffect(() => {
     const fetchHomeData = async () => {
@@ -153,6 +159,7 @@ export default function HomePage() {
                   <ProductCard
                     key={product._id}
                     product={{ ...product, id: product._id }}
+                    onAddToCart={handleAddToCart}
                   />
                 ))}
               </div>
@@ -199,6 +206,7 @@ export default function HomePage() {
               <ProductCard
                 key={product._id}
                 product={{ ...product, id: product._id }}
+                onAddToCart={handleAddToCart}
               />
             ))}
           </div>

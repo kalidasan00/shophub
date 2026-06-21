@@ -6,6 +6,9 @@ import Badge from './Badge'
 import StarRating from './StarRating'
 import { colors, radius, shadow, transition, font } from '@/lib/styles'
 
+/**
+ * @param {{ product: any, onAddToCart?: (product: any) => void }} props
+ */
 export default function ProductCard({ product, onAddToCart }) {
   const [hovered, setHovered] = useState(false)
   const [added, setAdded] = useState(false)
