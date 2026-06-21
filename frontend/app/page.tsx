@@ -25,13 +25,14 @@ const stats = [
 ]
 
 export default function HomePage() {
-  const [shops, setShops] = useState([])
+  const [shops, setShops] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchShops = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/shops?limit=6&sort=rating')
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+        const res = await fetch(`${apiUrl}/shops?limit=6&sort=rating`)
         const data = await res.json()
         setShops(data.shops || [])
       } catch (err) {
