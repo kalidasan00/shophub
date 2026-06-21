@@ -4,6 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { colors, font } from '@/lib/styles'
 
+/**
+ * @param {{ title: string, subtitle?: string, linkLabel?: string, linkHref?: string }} props
+ */
 export default function SectionHeader({ title, subtitle, linkLabel, linkHref }) {
   const [hovered, setHovered] = useState(false)
 
