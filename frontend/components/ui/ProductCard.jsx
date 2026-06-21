@@ -47,7 +47,7 @@ export default function ProductCard({ product, onAddToCart }) {
       {/* Image */}
       <Link href={`/products/${productId}`} style={{ textDecoration: 'none' }}>
         <div style={{
-          height: '180px',
+          height: 'clamp(110px, 22vw, 180px)',
           backgroundColor: hovered ? colors.primaryLight : colors.surface,
           display: 'flex',
           alignItems: 'center',
@@ -77,7 +77,7 @@ export default function ProductCard({ product, onAddToCart }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '56px',
+              fontSize: 'clamp(32px, 8vw, 56px)',
               transition: transition.base,
             }}>
               {product.icon}
@@ -86,7 +86,7 @@ export default function ProductCard({ product, onAddToCart }) {
 
           {/* Discount badge */}
           {discount && (
-            <div style={{ position: 'absolute', top: '10px', left: '10px', backgroundColor: '#EF4444', color: 'white', fontSize: font.xs, fontWeight: '700', padding: '3px 8px', borderRadius: radius.full }}>
+            <div style={{ position: 'absolute', top: '8px', left: '8px', backgroundColor: '#EF4444', color: 'white', fontSize: '10px', fontWeight: '700', padding: '2px 6px', borderRadius: radius.full }}>
               -{discount}%
             </div>
           )}
@@ -94,17 +94,17 @@ export default function ProductCard({ product, onAddToCart }) {
       </Link>
 
       {/* Body */}
-      <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+      <div style={{ padding: 'clamp(8px, 2vw, 14px)', display: 'flex', flexDirection: 'column', flex: 1 }}>
 
         {/* Tag + Name */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
           <Link href={`/products/${productId}`} style={{ textDecoration: 'none', flex: 1 }}>
             <h3 style={{
-              fontSize: font.base,
+              fontSize: 'clamp(0.75rem, 1.6vw, 0.875rem)',
               fontWeight: '600',
               color: hovered ? colors.primary : colors.dark,
               fontFamily: font.family,
-              lineHeight: '1.4',
+              lineHeight: '1.35',
               transition: transition.base,
               display: '-webkit-box',
               WebkitLineClamp: 2,
@@ -118,18 +118,18 @@ export default function ProductCard({ product, onAddToCart }) {
         </div>
 
         {/* Rating */}
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ marginBottom: 'clamp(6px, 1.5vw, 12px)' }}>
           <StarRating rating={product.rating} reviews={product.reviews || product.numReviews} />
         </div>
 
         {/* Price + Cart */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-          <div>
-            <span style={{ fontSize: '16px', fontWeight: '700', color: colors.dark, fontFamily: font.family }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', gap: '6px' }}>
+          <div style={{ minWidth: 0 }}>
+            <span style={{ fontSize: 'clamp(0.8rem, 1.8vw, 1rem)', fontWeight: '700', color: colors.dark, fontFamily: font.family }}>
               ${product.price}
             </span>
             {product.originalPrice && (
-              <span style={{ fontSize: font.sm, color: colors.muted, textDecoration: 'line-through', marginLeft: '6px', fontFamily: font.family }}>
+              <span style={{ fontSize: '11px', color: colors.muted, textDecoration: 'line-through', marginLeft: '4px', fontFamily: font.family }}>
                 ${product.originalPrice}
               </span>
             )}
@@ -141,16 +141,17 @@ export default function ProductCard({ product, onAddToCart }) {
               color: 'white',
               border: 'none',
               borderRadius: radius.sm,
-              padding: '7px 14px',
-              fontSize: font.xs,
+              padding: 'clamp(5px, 1.2vw, 7px) clamp(8px, 2vw, 14px)',
+              fontSize: 'clamp(10px, 1.8vw, 12px)',
               fontWeight: '600',
               cursor: 'pointer',
               fontFamily: font.family,
               transition: transition.base,
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
-            {added ? '✓ Added' : '+ Cart'}
+            {added ? '✓' : '+ Cart'}
           </button>
         </div>
       </div>
