@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ShoppingCart, ArrowLeft, Check, Lock, RotateCcw, Zap, Package } from 'lucide-react'
 import useCartStore from '@/store/useCartStore'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
@@ -32,8 +33,8 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8rem 1rem', textAlign: 'center', fontFamily: font.family }}>
-        <div style={{ width: '80px', height: '80px', borderRadius: '20px', backgroundColor: colors.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', marginBottom: '1.5rem', border: `1px solid ${colors.border}` }}>
-          🛒
+        <div style={{ width: '80px', height: '80px', borderRadius: '20px', backgroundColor: colors.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', border: `1px solid ${colors.border}` }}>
+          <ShoppingCart size={36} color={colors.muted} strokeWidth={1.5} />
         </div>
         <h2 style={{ fontSize: font.xl, fontWeight: '600', color: colors.dark, marginBottom: '8px' }}>Your cart is empty</h2>
         <p style={{ fontSize: font.base, color: colors.muted, marginBottom: '2rem' }}>Looks like you haven't added anything yet.</p>
@@ -70,9 +71,7 @@ export default function CartPage() {
             href="/shops"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: font.base, color: colors.primary, textDecoration: 'none', fontWeight: '500', marginTop: '8px' }}
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+            <ArrowLeft size={16} strokeWidth={1.5} />
             Continue Shopping
           </Link>
         </div>
@@ -135,9 +134,7 @@ export default function CartPage() {
             </div>
             {couponApplied && (
               <p style={{ fontSize: font.sm, color: '#16A34A', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check size={14} strokeWidth={2} />
                 Coupon applied — 10% off
               </p>
             )}
@@ -157,12 +154,12 @@ export default function CartPage() {
           {/* Trust Badges */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '1rem' }}>
             {[
-              { icon: '🔒', label: 'Secure Pay' },
-              { icon: '🔄', label: 'Easy Returns' },
-              { icon: '🚀', label: 'Fast Ship' },
+              { icon: <Lock size={18} strokeWidth={1.5} color={colors.muted} />, label: 'Secure Pay' },
+              { icon: <RotateCcw size={18} strokeWidth={1.5} color={colors.muted} />, label: 'Easy Returns' },
+              { icon: <Zap size={18} strokeWidth={1.5} color={colors.muted} />, label: 'Fast Ship' },
             ].map((badge) => (
               <div key={badge.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '10px 4px', backgroundColor: colors.surface, borderRadius: radius.md }}>
-                <span style={{ fontSize: '18px' }}>{badge.icon}</span>
+                {badge.icon}
                 <span style={{ fontSize: font.xs, color: colors.muted, fontWeight: '500' }}>{badge.label}</span>
               </div>
             ))}
@@ -180,14 +177,12 @@ function CartItem({ item, onRemove, onUpdateQty }) {
   return (
     <div style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, padding: '1rem', display: 'flex', gap: '1rem', boxShadow: shadow.card }}>
 
-      {/* Image or Icon */}
-      <div style={{ width: '72px', height: '72px', minWidth: '72px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
+      {/* Image or fallback */}
+      <div style={{ width: '72px', height: '72px', minWidth: '72px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, borderRadius: '12px', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {item.images?.[0] ? (
           <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>
-            {item.icon}
-          </div>
+          <Package size={28} color={colors.muted} strokeWidth={1.5} />
         )}
       </div>
 
@@ -218,7 +213,7 @@ function CartItem({ item, onRemove, onUpdateQty }) {
             onClick={() => onRemove(itemKey)}
             onMouseEnter={() => setRemoveHovered(true)}
             onMouseLeave={() => setRemoveHovered(false)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: removeHovered ? colors.red : '#9CA3AF', padding: '4px', borderRadius: '6px', flexShrink: 0, transition: transition.base }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: removeHovered ? colors.red : '#9CA3AF', padding: '4px', borderRadius: '6px', flexShrink: 0, transition: transition.base, display: 'flex' }}
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />

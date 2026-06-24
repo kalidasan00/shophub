@@ -18,7 +18,6 @@ export default function ShopPage({ params }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('All')
-  const [followHovered, setFollowHovered] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
   const totalItems = useCartStore((state) => state.getTotalItems())
 
@@ -51,22 +50,20 @@ export default function ShopPage({ params }) {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem 1.5rem', fontFamily: font.family }}>
-        {/* Skeleton */}
-        <div style={{ height: '20px', width: '200px', backgroundColor: colors.surface, borderRadius: '8px', marginBottom: '2rem' }} />
-        <div style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, padding: '2rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-            <div style={{ width: '80px', height: '80px', backgroundColor: colors.surface, borderRadius: '18px', flexShrink: 0 }} />
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0.75rem 1rem', fontFamily: font.family }}>
+        <div style={{ height: '14px', width: '160px', backgroundColor: colors.surface, borderRadius: '8px', marginBottom: '0.75rem' }} />
+        <div style={{ backgroundColor: colors.white, borderRadius: '14px', border: `1px solid ${colors.border}`, padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ width: '44px', height: '44px', backgroundColor: colors.surface, borderRadius: '10px', flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <div style={{ width: '200px', height: '24px', backgroundColor: colors.surface, borderRadius: '8px', marginBottom: '12px' }} />
-              <div style={{ width: '300px', height: '14px', backgroundColor: colors.surface, borderRadius: '8px', marginBottom: '8px' }} />
-              <div style={{ width: '250px', height: '14px', backgroundColor: colors.surface, borderRadius: '8px' }} />
+              <div style={{ width: '130px', height: '16px', backgroundColor: colors.surface, borderRadius: '6px', marginBottom: '8px' }} />
+              <div style={{ width: '180px', height: '11px', backgroundColor: colors.surface, borderRadius: '6px' }} />
             </div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
-          {[1,2,3,4,5,6].map((i) => (
-            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, height: '280px' }} />
+        <div className="product-grid">
+          {[1,2,3,4].map((i) => (
+            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '14px', border: `1px solid ${colors.border}`, aspectRatio: '4/5' }} />
           ))}
         </div>
       </div>
@@ -75,10 +72,9 @@ export default function ShopPage({ params }) {
 
   if (!shop) {
     return (
-      <div style={{ textAlign: 'center', padding: '6rem 1rem', fontFamily: font.family }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏪</div>
+      <div style={{ textAlign: 'center', padding: '4rem 1rem', fontFamily: font.family }}>
         <h2 style={{ fontSize: font.xl, fontWeight: '700', color: colors.dark }}>Shop not found</h2>
-        <Link href="/shops" style={{ color: colors.primary, textDecoration: 'none', marginTop: '16px', display: 'inline-block' }}>
+        <Link href="/shops" style={{ color: colors.primary, textDecoration: 'none', marginTop: '12px', display: 'inline-block' }}>
           Back to Shops
         </Link>
       </div>
@@ -87,116 +83,100 @@ export default function ShopPage({ params }) {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.5rem' }}>
+      <style>{`
+        .product-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+        }
+        @media (min-width: 640px) {
+          .product-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        }
+        @media (min-width: 1024px) {
+          .product-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        }
+        .tab-scroll::-webkit-scrollbar { display: none; }
+        .tab-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1rem' }}>
 
         {/* Breadcrumb */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: font.base, color: colors.muted, padding: '1.5rem 0' }}>
-          <Link href="/" style={{ color: colors.muted, textDecoration: 'none' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = colors.primary}
-            onMouseLeave={(e) => e.currentTarget.style.color = colors.muted}>
-            Home
-          </Link>
-          <span style={{ color: colors.border }}>/</span>
-          <Link href="/shops" style={{ color: colors.muted, textDecoration: 'none' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = colors.primary}
-            onMouseLeave={(e) => e.currentTarget.style.color = colors.muted}>
-            Shops
-          </Link>
-          <span style={{ color: colors.border }}>/</span>
-          <span style={{ color: colors.dark, fontWeight: '500' }}>{shop.name}</span>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: colors.muted, padding: '0.6rem 0' }}>
+          <Link href="/" style={{ color: colors.muted, textDecoration: 'none' }}>Home</Link>
+          <span>/</span>
+          <Link href="/shops" style={{ color: colors.muted, textDecoration: 'none' }}>Shops</Link>
+          <span>/</span>
+          <span style={{ color: colors.dark, fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.name}</span>
         </nav>
 
-        {/* Shop Hero */}
-        <div style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, padding: 'clamp(1.25rem, 3vw, 2rem)', marginBottom: '2rem', boxShadow: shadow.card }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'flex-start' }}>
+        {/* Shop Hero — compact strip */}
+        <div style={{
+          backgroundColor: colors.white,
+          borderRadius: '14px',
+          border: `1px solid ${colors.border}`,
+          padding: '10px 12px',
+          marginBottom: '10px',
+          boxShadow: shadow.card,
+        }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
 
-            {/* Logo or Icon */}
+            {/* Logo */}
             {shop.logo ? (
-              <img
-                src={shop.logo}
-                alt={shop.name}
-                style={{ width: '80px', height: '80px', borderRadius: '18px', objectFit: 'cover', flexShrink: 0 }}
-              />
+              <img src={shop.logo} alt={shop.name} style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
             ) : (
-              <div style={{ width: '80px', height: '80px', borderRadius: '18px', backgroundColor: shop.color || colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', flexShrink: 0 }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: shop.color || colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
                 {shop.icon}
               </div>
             )}
 
             {/* Info */}
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <h1 style={{ fontSize: 'clamp(1.4rem, 3vw, 1.9rem)', fontWeight: '800', color: colors.dark, letterSpacing: '-0.01em' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                <h1 style={{ fontSize: 'clamp(0.95rem, 2.5vw, 1.2rem)', fontWeight: '700', color: colors.dark, margin: 0, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {shop.name}
                 </h1>
                 {shop.badge && <Badge label={shop.badge} variant="primary" />}
               </div>
-              <p style={{ fontSize: '14px', color: colors.muted, lineHeight: '1.6', marginBottom: '16px', maxWidth: '520px' }}>
-                {shop.description}
-              </p>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-                <StarRating rating={shop.rating} reviews={shop.numReviews} size="md" />
+              {/* Meta row — single line */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                <StarRating rating={shop.rating} reviews={shop.numReviews} size="sm" />
+
+                <span style={{ fontSize: '11.5px', color: colors.muted }}>
+                  {products.length} products
+                </span>
 
                 {shop.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: font.base, color: colors.muted }}>
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    {shop.location}
-                  </div>
+                  <span style={{ fontSize: '11.5px', color: colors.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    📍 {shop.location}
+                  </span>
                 )}
-
-                {shop.since && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: font.base, color: colors.muted }}>
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Since {shop.since}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: font.base, color: colors.muted }}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                  {products.length} products
-                </div>
               </div>
             </div>
-
-            {/* Follow Button */}
-            <button
-              onMouseEnter={() => setFollowHovered(true)}
-              onMouseLeave={() => setFollowHovered(false)}
-              style={{ padding: '10px 24px', borderRadius: radius.md, fontSize: font.base, fontWeight: '600', fontFamily: font.family, cursor: 'pointer', border: `1px solid ${colors.border}`, backgroundColor: followHovered ? colors.surface : colors.white, color: followHovered ? colors.primary : colors.dark, transition: transition.base, flexShrink: 0, alignSelf: 'flex-start' }}
-            >
-              Follow Shop
-            </button>
           </div>
         </div>
 
         {/* Products Section */}
-        <div style={{ paddingBottom: '4rem' }}>
+        <div style={{ paddingBottom: '2rem' }}>
 
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '1.25rem' }}>
-            <h2 style={{ fontSize: 'clamp(1.25rem, 2vw, 1.5rem)', fontWeight: '700', color: colors.dark }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', fontWeight: '700', color: colors.dark, margin: 0 }}>
               Products
             </h2>
             {totalItems > 0 && (
-              <Link href="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: colors.primaryLight, color: colors.primary, padding: '8px 16px', borderRadius: radius.lg, fontSize: font.base, fontWeight: '500', textDecoration: 'none' }}>
-                🛒 {totalItems} item{totalItems > 1 ? 's' : ''} in cart
+              <Link href="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: colors.primaryLight, color: colors.primary, padding: '4px 10px', borderRadius: radius.full, fontSize: '12px', fontWeight: '600', textDecoration: 'none', flexShrink: 0 }}>
+                🛒 {totalItems}
               </Link>
             )}
           </div>
 
           {/* Filter Tabs */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          <div className="tab-scroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', marginBottom: '10px', paddingBottom: '2px' }}>
             {productTabs.map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                style={{ padding: '7px 16px', borderRadius: radius.full, fontSize: font.base, fontWeight: '500', fontFamily: font.family, cursor: 'pointer', border: `1px solid ${activeTab === tab ? colors.primary : colors.border}`, backgroundColor: activeTab === tab ? colors.primary : colors.white, color: activeTab === tab ? colors.white : colors.muted, transition: transition.base }}>
+                style={{ padding: '5px 11px', borderRadius: radius.full, fontSize: '12px', fontWeight: '500', fontFamily: font.family, cursor: 'pointer', border: `1px solid ${activeTab === tab ? colors.primary : colors.border}`, backgroundColor: activeTab === tab ? colors.primary : colors.white, color: activeTab === tab ? colors.white : colors.muted, transition: transition.base, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {tab}
               </button>
             ))}
@@ -204,7 +184,7 @@ export default function ShopPage({ params }) {
 
           {/* Products Grid */}
           {filtered.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+            <div className="product-grid">
               {filtered.map((product) => (
                 <ProductCard
                   key={product._id}
@@ -214,12 +194,11 @@ export default function ShopPage({ params }) {
               ))}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📦</div>
-              <h3 style={{ fontSize: font.lg, fontWeight: '600', color: colors.dark, marginBottom: '8px', fontFamily: font.family }}>No products found</h3>
-              <p style={{ fontSize: font.base, color: colors.muted, marginBottom: '20px', fontFamily: font.family }}>Try a different filter</p>
+            <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+              <h3 style={{ fontSize: font.lg, fontWeight: '600', color: colors.dark, marginBottom: '6px', fontFamily: font.family }}>No products found</h3>
+              <p style={{ fontSize: font.base, color: colors.muted, marginBottom: '16px', fontFamily: font.family }}>Try a different filter</p>
               <button onClick={() => setActiveTab('All')}
-                style={{ backgroundColor: colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '10px 24px', fontSize: font.base, fontWeight: '600', fontFamily: font.family, cursor: 'pointer' }}>
+                style={{ backgroundColor: colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '8px 20px', fontSize: font.base, fontWeight: '600', fontFamily: font.family, cursor: 'pointer' }}>
                 Show All
               </button>
             </div>
