@@ -34,6 +34,11 @@ const shopSchema = new mongoose.Schema({
     type: String,
     default: '#EEF2FF',
   },
+  gradient: {
+    from:      { type: String, default: '#6366F1' },
+    to:        { type: String, default: '#8B5CF6' },
+    direction: { type: String, default: '135deg'  },
+  },
   location: {
     type: String,
     default: '',

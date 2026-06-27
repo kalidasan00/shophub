@@ -93,3 +93,23 @@ exports.updatePassword = async (req, res) => {
   await user.save()
   sendToken(user, 200, res)
 }
+
+// @route   PUT /api/auth/become-seller
+// Upgrades the logged-in user's role from 'customer' to 'shopowner'.
+// Instant, self-serve — no approval step (matches Etsy-style onboarding).
+exports.becomeSeller = async (req, res) => {
+  const user = await User.findById(req.user.id)
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' })
+  }
+
+  if (user.role === 'shopowner' || user.role === 'admin') {
+    return sendToken(user, 200, res)
+  }
+
+  user.role = 'shopowner'
+  await user.save()
+
+  sendToken(user, 200, res)
+}

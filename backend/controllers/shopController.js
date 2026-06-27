@@ -1,5 +1,6 @@
 const Shop = require('../models/Shop')
 const Product = require('../models/Product')
+const User = require('../models/User')
 
 // @route   GET /api/shops
 exports.getShops = async (req, res) => {
@@ -7,26 +8,20 @@ exports.getShops = async (req, res) => {
 
   const query = { isActive: true }
 
-  if (owner) {
-    query.owner = owner
-  }
-
-  if (category && category !== 'All') {
-    query.category = category
-  }
-
+  if (owner) query.owner = owner
+  if (category && category !== 'All') query.category = category
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
+      { name:        { $regex: search, $options: 'i' } },
       { description: { $regex: search, $options: 'i' } },
-      { location: { $regex: search, $options: 'i' } },
+      { location:    { $regex: search, $options: 'i' } },
     ]
   }
 
   let sortObj = { createdAt: -1 }
-  if (sort === 'rating') sortObj = { rating: -1 }
+  if (sort === 'rating')  sortObj = { rating: -1 }
   if (sort === 'reviews') sortObj = { numReviews: -1 }
-  if (sort === 'name') sortObj = { name: 1 }
+  if (sort === 'name')    sortObj = { name: 1 }
 
   const total = await Shop.countDocuments(query)
   const shops = await Shop.find(query)
@@ -61,7 +56,12 @@ exports.getShop = async (req, res) => {
 // @route   POST /api/shops
 exports.createShop = async (req, res) => {
   req.body.owner = req.user.id
+
   const shop = await Shop.create(req.body)
+
+  // Upgrade user role to shopowner so they can manage their shop
+  await User.findByIdAndUpdate(req.user.id, { role: 'shopowner' })
+
   res.status(201).json({ success: true, shop })
 }
 
