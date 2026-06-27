@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { use } from 'react'
+import { MapPin, Star, ShoppingCart, Store } from 'lucide-react'
 import useCartStore from '@/store/useCartStore'
 import ProductCard from '@/components/ui/ProductCard'
-import Badge from '@/components/ui/Badge'
-import StarRating from '@/components/ui/StarRating'
 import { shopsAPI, productsAPI } from '@/lib/api'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
@@ -48,38 +47,18 @@ export default function ShopPage({ params }) {
     addItem({ ...product, id: product._id })
   }
 
-  if (loading) {
-    return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0.75rem 1rem', fontFamily: font.family }}>
-        <div style={{ height: '14px', width: '160px', backgroundColor: colors.surface, borderRadius: '8px', marginBottom: '0.75rem' }} />
-        <div style={{ backgroundColor: colors.white, borderRadius: '14px', border: `1px solid ${colors.border}`, padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <div style={{ width: '44px', height: '44px', backgroundColor: colors.surface, borderRadius: '10px', flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ width: '130px', height: '16px', backgroundColor: colors.surface, borderRadius: '6px', marginBottom: '8px' }} />
-              <div style={{ width: '180px', height: '11px', backgroundColor: colors.surface, borderRadius: '6px' }} />
-            </div>
-          </div>
-        </div>
-        <div className="product-grid">
-          {[1,2,3,4].map((i) => (
-            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '14px', border: `1px solid ${colors.border}`, aspectRatio: '4/5' }} />
-          ))}
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <ShopSkeleton />
 
-  if (!shop) {
-    return (
-      <div style={{ textAlign: 'center', padding: '4rem 1rem', fontFamily: font.family }}>
-        <h2 style={{ fontSize: font.xl, fontWeight: '700', color: colors.dark }}>Shop not found</h2>
-        <Link href="/shops" style={{ color: colors.primary, textDecoration: 'none', marginTop: '12px', display: 'inline-block' }}>
-          Back to Shops
-        </Link>
-      </div>
-    )
-  }
+  if (!shop) return (
+    <div style={{ textAlign: 'center', padding: '4rem 1rem', fontFamily: font.family }}>
+      <h2 style={{ fontSize: font.xl, fontWeight: '700', color: colors.dark }}>Shop not found</h2>
+      <Link href="/shops" style={{ color: colors.primary, textDecoration: 'none', marginTop: '12px', display: 'inline-block' }}>Back to Shops</Link>
+    </div>
+  )
+
+  const g = shop.gradient || { from: '#6366F1', to: '#8B5CF6', direction: '135deg' }
+  const brandGradient = `linear-gradient(${g.direction}, ${g.from}, ${g.to})`
+  const brandColor = g.from
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family }}>
@@ -99,90 +78,101 @@ export default function ShopPage({ params }) {
         .tab-scroll { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1rem' }}>
+      {/* ── HERO + TABS in one block ── */}
+      <div style={{ background: brandGradient, position: 'relative', overflow: 'hidden' }}>
 
-        {/* Breadcrumb */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: colors.muted, padding: '0.6rem 0' }}>
-          <Link href="/" style={{ color: colors.muted, textDecoration: 'none' }}>Home</Link>
-          <span>/</span>
-          <Link href="/shops" style={{ color: colors.muted, textDecoration: 'none' }}>Shops</Link>
-          <span>/</span>
-          <span style={{ color: colors.dark, fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.name}</span>
-        </nav>
+        {/* subtle overlay */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.07) 0%, transparent 50%)', pointerEvents: 'none' }} />
 
-        {/* Shop Hero — compact strip */}
-        <div style={{
-          backgroundColor: colors.white,
-          borderRadius: '14px',
-          border: `1px solid ${colors.border}`,
-          padding: '10px 12px',
-          marginBottom: '10px',
-          boxShadow: shadow.card,
-        }}>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1rem', position: 'relative' }}>
+
+          {/* Breadcrumb */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'rgba(255,255,255,0.6)', padding: '0.6rem 0 1rem' }}>
+            <Link href="/" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Home</Link>
+            <span>/</span>
+            <Link href="/shops" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Shops</Link>
+            <span>/</span>
+            <span style={{ color: '#fff', fontWeight: '500' }}>{shop.name}</span>
+          </nav>
+
+          {/* Shop info row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
 
             {/* Logo */}
-            {shop.logo ? (
-              <img src={shop.logo} alt={shop.name} style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: shop.color || colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
-                {shop.icon}
-              </div>
-            )}
+            <div style={{ width: '56px', height: '56px', minWidth: '56px', borderRadius: '14px', backgroundColor: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              {shop.logo
+                ? <img src={shop.logo} alt={shop.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <Store size={26} color="rgba(255,255,255,0.9)" strokeWidth={1.5} />
+              }
+            </div>
 
-            {/* Info */}
+            {/* Name + meta */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                <h1 style={{ fontSize: 'clamp(0.95rem, 2.5vw, 1.2rem)', fontWeight: '700', color: colors.dark, margin: 0, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.5rem)', fontWeight: '800', color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
                   {shop.name}
                 </h1>
-                {shop.badge && <Badge label={shop.badge} variant="primary" />}
-              </div>
-
-              {/* Meta row — single line */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-                <StarRating rating={shop.rating} reviews={shop.numReviews} size="sm" />
-
-                <span style={{ fontSize: '11.5px', color: colors.muted }}>
-                  {products.length} products
-                </span>
-
-                {shop.location && (
-                  <span style={{ fontSize: '11.5px', color: colors.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    📍 {shop.location}
+                {shop.badge && (
+                  <span style={{ fontSize: '10px', fontWeight: '700', backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 7px', borderRadius: radius.full, border: '1px solid rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {shop.badge}
                   </span>
+                )}
+                {totalItems > 0 && (
+                  <Link href="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: '2px 8px', borderRadius: radius.full, fontSize: '11px', fontWeight: '700', textDecoration: 'none' }}>
+                    <ShoppingCart size={11} strokeWidth={2.5} /> {totalItems}
+                  </Link>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                {shop.rating > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <Star size={11} fill="#FBBF24" color="#FBBF24" />
+                    <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#fff' }}>{shop.rating}</span>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>({shop.numReviews})</span>
+                  </div>
+                )}
+                <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.75)' }}>{products.length} products</span>
+                {shop.location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <MapPin size={11} color="rgba(255,255,255,0.65)" strokeWidth={2} />
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>{shop.location}</span>
+                  </div>
                 )}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Products Section */}
-        <div style={{ paddingBottom: '2rem' }}>
-
-          {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
-            <h2 style={{ fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', fontWeight: '700', color: colors.dark, margin: 0 }}>
-              Products
-            </h2>
-            {totalItems > 0 && (
-              <Link href="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: colors.primaryLight, color: colors.primary, padding: '4px 10px', borderRadius: radius.full, fontSize: '12px', fontWeight: '600', textDecoration: 'none', flexShrink: 0 }}>
-                🛒 {totalItems}
-              </Link>
-            )}
-          </div>
-
-          {/* Filter Tabs */}
-          <div className="tab-scroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', marginBottom: '10px', paddingBottom: '2px' }}>
+          {/* Tabs — sit at bottom of gradient, no gap */}
+          <div className="tab-scroll" style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '0' }}>
             {productTabs.map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                style={{ padding: '5px 11px', borderRadius: radius.full, fontSize: '12px', fontWeight: '500', fontFamily: font.family, cursor: 'pointer', border: `1px solid ${activeTab === tab ? colors.primary : colors.border}`, backgroundColor: activeTab === tab ? colors.primary : colors.white, color: activeTab === tab ? colors.white : colors.muted, transition: transition.base, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: `${radius.full} ${radius.full} 0 0`,
+                  fontSize: '12px',
+                  fontWeight: activeTab === tab ? '700' : '500',
+                  fontFamily: font.family,
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: activeTab === tab ? colors.white : 'rgba(255,255,255,0.12)',
+                  color: activeTab === tab ? brandColor : 'rgba(255,255,255,0.8)',
+                  transition: transition.base,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
                 {tab}
               </button>
             ))}
           </div>
+        </div>
+      </div>
 
-          {/* Products Grid */}
+      {/* ── PRODUCTS — immediately after hero, no gap ── */}
+      <div style={{ backgroundColor: g.from + '12', borderTop: 'none' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '12px 1rem 3rem' }}>
           {filtered.length > 0 ? (
             <div className="product-grid">
               {filtered.map((product) => (
@@ -194,17 +184,32 @@ export default function ShopPage({ params }) {
               ))}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
-              <h3 style={{ fontSize: font.lg, fontWeight: '600', color: colors.dark, marginBottom: '6px', fontFamily: font.family }}>No products found</h3>
-              <p style={{ fontSize: font.base, color: colors.muted, marginBottom: '16px', fontFamily: font.family }}>Try a different filter</p>
-              <button onClick={() => setActiveTab('All')}
-                style={{ backgroundColor: colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '8px 20px', fontSize: font.base, fontWeight: '600', fontFamily: font.family, cursor: 'pointer' }}>
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <h3 style={{ fontSize: font.lg, fontWeight: '600', color: colors.dark, marginBottom: '6px' }}>No products found</h3>
+              <p style={{ fontSize: font.base, color: colors.muted, marginBottom: '16px' }}>Try a different filter</p>
+              <button onClick={() => setActiveTab('All')} style={{ backgroundColor: brandColor, color: '#fff', border: 'none', borderRadius: radius.md, padding: '8px 20px', fontSize: font.base, fontWeight: '600', fontFamily: font.family, cursor: 'pointer' }}>
                 Show All
               </button>
             </div>
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function ShopSkeleton() {
+  return (
+    <div style={{ fontFamily: font.family }}>
+      <div style={{ height: '160px', background: 'linear-gradient(135deg, #E5E7EB, #D1D5DB)' }} />
+      <div style={{ backgroundColor: colors.white, padding: '12px 1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+          {[1,2,3,4].map((i) => (
+            <div key={i} style={{ aspectRatio: '4/5', borderRadius: '14px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, animation: 'pulse 1.5s ease-in-out infinite' }} />
+          ))}
+        </div>
+      </div>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import {
-  Store, Lock, AlertTriangle, Loader, Package, Pencil, Trash2,
+  Store, AlertTriangle, Loader, Package, Pencil, Trash2,
   ChevronDown, ChevronUp, Plus, X, Check, TrendingUp, ShoppingBag,
   AlertCircle, DollarSign,
 } from 'lucide-react'
@@ -13,8 +13,8 @@ import { shopsAPI, productsAPI, ordersAPI } from '@/lib/api'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
 /* ── Constants ── */
-const categories   = ['Fashion', 'Electronics', 'Food', 'Beauty', 'Sports', 'Books', 'Home', 'Toys', 'Other']
-const productTags  = ['New', 'Sale', 'Popular', 'Top Rated', 'Trending', 'Fresh', '']
+const categories    = ['Fashion', 'Electronics', 'Food', 'Beauty', 'Sports', 'Books', 'Home', 'Toys', 'Other']
+const productTags   = ['New', 'Sale', 'Popular', 'Top Rated', 'Trending', 'Fresh', '']
 const orderStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
 
 const statusStyles = {
@@ -25,6 +25,26 @@ const statusStyles = {
   delivered:  { bg: '#DCFCE7', text: '#16A34A' },
   cancelled:  { bg: '#FEE2E2', text: '#EF4444' },
 }
+
+const gradientPresets = [
+  { label: 'Indigo Violet', from: '#6366F1', to: '#8B5CF6', direction: '135deg' },
+  { label: 'Rose Sunset',   from: '#F43F5E', to: '#F97316', direction: '135deg' },
+  { label: 'Ocean Blue',    from: '#0EA5E9', to: '#6366F1', direction: '135deg' },
+  { label: 'Emerald',       from: '#10B981', to: '#0EA5E9', direction: '135deg' },
+  { label: 'Peach',         from: '#F97316', to: '#FBBF24', direction: '135deg' },
+  { label: 'Midnight',      from: '#1E1B4B', to: '#4C1D95', direction: '135deg' },
+  { label: 'Pink Dream',    from: '#EC4899', to: '#A855F7', direction: '135deg' },
+  { label: 'Slate Cool',    from: '#475569', to: '#0EA5E9', direction: '135deg' },
+]
+
+const directions = [
+  { label: '→',  value: '90deg'  },
+  { label: '↘',  value: '135deg' },
+  { label: '↓',  value: '180deg' },
+  { label: '↙',  value: '225deg' },
+]
+
+const DEFAULT_GRADIENT = { from: '#6366F1', to: '#8B5CF6', direction: '135deg' }
 
 const inputStyle = {
   width: '100%', border: `1px solid ${colors.border}`, borderRadius: radius.md,
@@ -43,47 +63,34 @@ const iconBtnStyle = {
    ROOT PAGE
 ══════════════════════════════════════════════ */
 export default function SellerDashboardPage() {
-  const router = useRouter()
-  const user = useAuthStore((state) => state.user)
+  const router  = useRouter()
+  const user    = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
 
   const [checking, setChecking] = useState(true)
-  const [shop, setShop] = useState(null)
-  const [error, setError] = useState(null)
+  const [shop,     setShop]     = useState(null)
+  const [error,    setError]    = useState(null)
 
   useEffect(() => {
     if (user === null) { router.push('/auth/login?redirect=/seller'); return }
-    if (user && user.role !== 'shopowner' && user.role !== 'admin') {
-      setError('only-shopowner'); setChecking(false)
-    }
   }, [user])
 
   useEffect(() => {
-    if (!user || (user.role !== 'shopowner' && user.role !== 'admin')) return
+    if (!user) return
     const checkShop = async () => {
       try {
         const res = await shopsAPI.getAll({ owner: user.id || user._id })
         setShop(res.data.shops?.[0] || null)
       } catch { setError('load-failed') }
-      finally { setChecking(false) }
+      finally  { setChecking(false) }
     }
     checkShop()
   }, [user])
 
   if (!user) return null
 
-  if (error === 'only-shopowner') return (
-    <CenteredMessage
-      icon={<Lock size={36} color={colors.muted} strokeWidth={1.5} />}
-      title="Seller access required"
-      subtitle="Your account doesn't have seller permissions. Contact support to become a seller."
-    />
-  )
-
   if (checking) return (
-    <CenteredMessage
-      icon={<Loader size={36} color={colors.muted} strokeWidth={1.5} />}
-      title="Loading your seller dashboard..."
-    />
+    <CenteredMessage icon={<Loader size={36} color={colors.muted} strokeWidth={1.5} />} title="Loading..." />
   )
 
   if (error === 'load-failed') return (
@@ -94,7 +101,14 @@ export default function SellerDashboardPage() {
     />
   )
 
-  if (!shop) return <CreateShopForm onCreated={setShop} />
+  if (!shop) return (
+    <SellerOnboarding
+      onCreated={(newShop) => {
+        setShop(newShop)
+        setUser({ ...user, role: 'shopowner' })
+      }}
+    />
+  )
 
   return <SellerDashboard shop={shop} onShopUpdate={setShop} />
 }
@@ -111,12 +125,66 @@ function CenteredMessage({ icon, title, subtitle }) {
 }
 
 /* ══════════════════════════════════════════════
+   SELLER ONBOARDING
+══════════════════════════════════════════════ */
+function SellerOnboarding({ onCreated }) {
+  const [step, setStep] = useState('landing')
+
+  if (step === 'form') return <CreateShopForm onCreated={onCreated} onBack={() => setStep('landing')} />
+
+  const perks = [
+    { icon: <Store size={18} strokeWidth={1.5} />,     title: 'Your own storefront', desc: 'List products and manage your shop in minutes.' },
+    { icon: <ShoppingBag size={18} strokeWidth={1.5} />, title: 'Instant orders',      desc: 'Get notified the moment a buyer places an order.' },
+    { icon: <TrendingUp size={18} strokeWidth={1.5} />,  title: 'Sales analytics',     desc: 'Track revenue, top products and growth over time.' },
+    { icon: <DollarSign size={18} strokeWidth={1.5} />,  title: 'Keep more earnings',  desc: 'Low platform fee. You set your own prices.' },
+  ]
+
+  return (
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '3rem 1.5rem 5rem', fontFamily: font.family }}>
+      <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '18px', backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+          <Store size={30} color={colors.primary} strokeWidth={1.5} />
+        </div>
+        <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 800, color: colors.dark, marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
+          Start selling on ShopHub
+        </h1>
+        <p style={{ fontSize: font.base, color: colors.muted, maxWidth: '380px', margin: '0 auto' }}>
+          Join thousands of sellers. Set up your shop in under 2 minutes — no approval needed.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '2rem' }}>
+        {perks.map((perk) => (
+          <div key={perk.title} style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.lg, padding: '1rem', boxShadow: shadow.card }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: radius.md, backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.primary, marginBottom: '10px' }}>
+              {perk.icon}
+            </div>
+            <p style={{ fontSize: '13.5px', fontWeight: 700, color: colors.dark, margin: '0 0 4px' }}>{perk.title}</p>
+            <p style={{ fontSize: '12.5px', color: colors.muted, margin: 0, lineHeight: 1.5 }}>{perk.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => setStep('form')}
+        style={{ width: '100%', padding: '14px', backgroundColor: colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, fontSize: font.md, fontWeight: 700, fontFamily: font.family, cursor: 'pointer', letterSpacing: '0.01em' }}
+      >
+        Set up my shop →
+      </button>
+      <p style={{ textAlign: 'center', fontSize: font.xs, color: colors.muted, marginTop: '0.75rem' }}>
+        Free to start · No credit card required
+      </p>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════
    CREATE SHOP FORM
 ══════════════════════════════════════════════ */
-function CreateShopForm({ onCreated }) {
-  const [form, setForm] = useState({ name: '', description: '', category: 'Fashion' })
+function CreateShopForm({ onCreated, onBack }) {
+  const [form,       setForm]       = useState({ name: '', description: '', category: 'Fashion' })
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+  const [error,      setError]      = useState(null)
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -134,26 +202,29 @@ function CreateShopForm({ onCreated }) {
   }
 
   return (
-    <div style={{ maxWidth: '560px', margin: '0 auto', padding: '3rem 1.5rem 5rem', fontFamily: font.family }}>
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
-          <Store size={40} color={colors.primary} strokeWidth={1.5} />
-        </div>
-        <h1 style={{ fontSize: 'clamp(1.5rem, 3vw, 1.875rem)', fontWeight: 700, color: colors.dark, marginBottom: '0.5rem' }}>Set up your shop</h1>
-        <p style={{ fontSize: font.base, color: colors.muted }}>Tell us about your shop. You can edit this later.</p>
+    <div style={{ maxWidth: '560px', margin: '0 auto', padding: '2rem 1.5rem 5rem', fontFamily: font.family }}>
+      <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: colors.muted, fontSize: font.sm, fontFamily: font.family, marginBottom: '1.5rem', padding: 0 }}>
+        <ChevronDown size={14} style={{ transform: 'rotate(90deg)' }} strokeWidth={2} /> Back
+      </button>
+
+      <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+        <h1 style={{ fontSize: 'clamp(1.3rem, 3vw, 1.75rem)', fontWeight: 800, color: colors.dark, marginBottom: '0.35rem', letterSpacing: '-0.02em' }}>
+          Set up your shop
+        </h1>
+        <p style={{ fontSize: font.base, color: colors.muted }}>You can edit everything later from settings.</p>
       </div>
 
       <form onSubmit={handleSubmit} style={{ backgroundColor: colors.white, borderRadius: radius.xxl, border: `1px solid ${colors.border}`, padding: '1.75rem', boxShadow: shadow.card, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <Field label="Shop name">
           <input type="text" name="name" value={form.name} onChange={handleChange} placeholder="e.g. Urban Threads" style={inputStyle}
             onFocus={(e) => e.target.style.borderColor = colors.primary}
-            onBlur={(e) => e.target.style.borderColor = colors.border} />
+            onBlur={(e)  => e.target.style.borderColor = colors.border} />
         </Field>
-        <Field label="Description">
-          <textarea name="description" value={form.description} onChange={handleChange} placeholder="What does your shop sell?" rows={4}
+        <Field label="What do you sell?">
+          <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe your shop and products..." rows={4}
             style={{ ...inputStyle, resize: 'vertical', fontFamily: font.family }}
             onFocus={(e) => e.target.style.borderColor = colors.primary}
-            onBlur={(e) => e.target.style.borderColor = colors.border} />
+            onBlur={(e)  => e.target.style.borderColor = colors.border} />
         </Field>
         <Field label="Category">
           <select name="category" value={form.category} onChange={handleChange} style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -163,8 +234,8 @@ function CreateShopForm({ onCreated }) {
 
         {error && <ErrorBox>{error}</ErrorBox>}
 
-        <button type="submit" disabled={submitting} style={{ backgroundColor: submitting ? '#A5B4FC' : colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '13px', fontSize: font.md, fontWeight: 600, fontFamily: font.family, cursor: submitting ? 'not-allowed' : 'pointer' }}>
-          {submitting ? 'Creating shop...' : 'Create Shop'}
+        <button type="submit" disabled={submitting} style={{ backgroundColor: submitting ? '#A5B4FC' : colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '13px', fontSize: font.md, fontWeight: 700, fontFamily: font.family, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+          {submitting ? 'Creating your shop...' : 'Create Shop'}
         </button>
       </form>
     </div>
@@ -177,47 +248,61 @@ function CreateShopForm({ onCreated }) {
 function SellerDashboard({ shop, onShopUpdate }) {
   const [activeTab, setActiveTab] = useState('overview')
 
+  const g           = shop.gradient || DEFAULT_GRADIENT
+  const gradientCSS = `linear-gradient(${g.direction}, ${g.from}, ${g.to})`
+
   const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'orders',   label: 'Orders'   },
-    { key: 'products', label: 'Products' },
-    { key: 'settings', label: 'Settings' },
+    { key: 'overview', label: 'Overview'  },
+    { key: 'orders',   label: 'Orders'    },
+    { key: 'products', label: 'Products'  },
+    { key: 'settings', label: 'Settings'  },
   ]
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem 1.25rem 5rem', fontFamily: font.family }}>
+    <div style={{ minHeight: '100vh', background: `linear-gradient(180deg, ${g.from}22 0%, transparent 320px)`, fontFamily: font.family }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem 1.25rem 5rem' }}>
 
-      {/* Shop header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-        <div style={{ width: '48px', height: '48px', minWidth: '48px', borderRadius: radius.lg, backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Store size={22} color={colors.primary} strokeWidth={1.5} />
+        {/* Shop header — gradient banner */}
+        <div style={{
+          background: gradientCSS,
+          borderRadius: radius.xxl,
+          padding: '1.5rem 1.75rem',
+          marginBottom: '1.5rem',
+          boxShadow: shadow.card,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+        }}>
+          <div style={{ width: '52px', height: '52px', minWidth: '52px', borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Store size={24} color="#fff" strokeWidth={1.5} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: 700, color: '#fff', margin: 0 }}>{shop.name}</h1>
+            <p style={{ fontSize: font.sm, color: 'rgba(255,255,255,0.75)', margin: '2px 0 0' }}>Seller Dashboard · {shop.category}</p>
+          </div>
         </div>
-        <div>
-          <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: 700, color: colors.dark, margin: 0 }}>{shop.name}</h1>
-          <p style={{ fontSize: font.sm, color: colors.muted, margin: '2px 0 0' }}>Seller Dashboard · {shop.category}</p>
+
+        {/* Tab bar */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${colors.border}`, marginBottom: '1.5rem', overflowX: 'auto' }}>
+          {tabs.map((tab) => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: '0.75rem 0', marginRight: '1.5rem', border: 'none',
+                borderBottom: activeTab === tab.key ? `2px solid ${colors.primary}` : '2px solid transparent',
+                backgroundColor: 'transparent', cursor: 'pointer',
+                fontSize: font.base, fontWeight: 600, fontFamily: font.family,
+                color: activeTab === tab.key ? colors.primary : colors.muted,
+                transition: transition.fast, whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >{tab.label}</button>
+          ))}
         </div>
-      </div>
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${colors.border}`, marginBottom: '1.5rem', overflowX: 'auto' }}>
-        {tabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '0.75rem 0', marginRight: '1.5rem', border: 'none',
-              borderBottom: activeTab === tab.key ? `2px solid ${colors.primary}` : '2px solid transparent',
-              backgroundColor: 'transparent', cursor: 'pointer',
-              fontSize: font.base, fontWeight: 600, fontFamily: font.family,
-              color: activeTab === tab.key ? colors.primary : colors.muted,
-              transition: transition.fast, whiteSpace: 'nowrap', flexShrink: 0,
-            }}
-          >{tab.label}</button>
-        ))}
+        {activeTab === 'overview' && <OverviewTab shopId={shop._id} />}
+        {activeTab === 'orders'   && <OrdersTab   shopId={shop._id} />}
+        {activeTab === 'products' && <ProductsTab  shopId={shop._id} />}
+        {activeTab === 'settings' && <ShopSettingsTab shop={shop} onShopUpdate={onShopUpdate} />}
       </div>
-
-      {activeTab === 'overview' && <OverviewTab shopId={shop._id} />}
-      {activeTab === 'orders'   && <OrdersTab   shopId={shop._id} />}
-      {activeTab === 'products' && <ProductsTab  shopId={shop._id} />}
-      {activeTab === 'settings' && <ShopSettingsTab shop={shop} onShopUpdate={onShopUpdate} />}
     </div>
   )
 }
@@ -227,8 +312,8 @@ function SellerDashboard({ shop, onShopUpdate }) {
 ══════════════════════════════════════════════ */
 function OverviewTab({ shopId }) {
   const [analytics, setAnalytics] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(null)
 
   useEffect(() => {
     const fetch = async () => {
@@ -252,20 +337,18 @@ function OverviewTab({ shopId }) {
     <p style={{ fontSize: font.base, color: colors.muted, textAlign: 'center', padding: '2rem 0' }}>{error || 'No data available'}</p>
   )
 
-  const chartData = analytics.revenueByDay.map((d) => ({
-    date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  const chartData  = analytics.revenueByDay.map((d) => ({
+    date:    new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     revenue: d.revenue,
   }))
-
   const alertCount = analytics.lowStockCount + analytics.outOfStockCount
 
   return (
     <div>
-      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '1.5rem' }}>
-        <StatCard icon={<DollarSign size={16} strokeWidth={2} />} iconBg="#DCFCE7" iconColor="#16A34A" label="Total Revenue"     value={`$${analytics.totalRevenue.toFixed(2)}`} />
-        <StatCard icon={<ShoppingBag size={16} strokeWidth={2} />} iconBg={colors.primaryLight} iconColor={colors.primary} label="Total Orders" value={analytics.totalOrders} />
-        <StatCard icon={<Package size={16} strokeWidth={2} />}     iconBg="#FEF3C7" iconColor="#D97706" label="Total Products"  value={analytics.totalProducts} />
+        <StatCard icon={<DollarSign size={16} strokeWidth={2} />}   iconBg="#DCFCE7"           iconColor="#16A34A"      label="Total Revenue"      value={`$${analytics.totalRevenue.toFixed(2)}`} />
+        <StatCard icon={<ShoppingBag size={16} strokeWidth={2} />}  iconBg={colors.primaryLight} iconColor={colors.primary} label="Total Orders"    value={analytics.totalOrders} />
+        <StatCard icon={<Package size={16} strokeWidth={2} />}      iconBg="#FEF3C7"           iconColor="#D97706"      label="Total Products"     value={analytics.totalProducts} />
         <StatCard
           icon={<AlertCircle size={16} strokeWidth={2} />}
           iconBg={alertCount > 0 ? '#FEE2E2' : colors.surface}
@@ -275,7 +358,6 @@ function OverviewTab({ shopId }) {
         />
       </div>
 
-      {/* Revenue chart */}
       <div style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, padding: '1.25rem', marginBottom: '1.5rem', boxShadow: shadow.card }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
           <TrendingUp size={16} color={colors.primary} strokeWidth={2} />
@@ -293,7 +375,6 @@ function OverviewTab({ shopId }) {
         </div>
       </div>
 
-      {/* Top products */}
       <div style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, padding: '1.25rem', boxShadow: shadow.card }}>
         <h3 style={{ fontSize: font.base, fontWeight: 600, color: colors.dark, marginBottom: '1rem' }}>Top Selling Products</h3>
         {analytics.topProducts.length === 0
@@ -340,11 +421,11 @@ function StatCard({ icon, iconBg, iconColor, label, value }) {
    ORDERS TAB
 ══════════════════════════════════════════════ */
 function OrdersTab({ shopId }) {
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [expandedId, setExpandedId] = useState(null)
-  const [updatingId, setUpdatingId] = useState(null)
+  const [orders,      setOrders]      = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState(null)
+  const [expandedId,  setExpandedId]  = useState(null)
+  const [updatingId,  setUpdatingId]  = useState(null)
 
   useEffect(() => {
     const fetch = async () => {
@@ -389,8 +470,8 @@ function OrdersTab({ shopId }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {orders.map((order) => {
         const isExpanded = expandedId === order._id
-        const ss = statusStyles[order.orderStatus] || statusStyles.placed
-        const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        const ss         = statusStyles[order.orderStatus] || statusStyles.placed
+        const orderDate  = new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 
         return (
           <div key={order._id} style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, boxShadow: shadow.card, overflow: 'hidden' }}>
@@ -469,10 +550,10 @@ function OrdersTab({ shopId }) {
    PRODUCTS TAB
 ══════════════════════════════════════════════ */
 function ProductsTab({ shopId }) {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [showForm, setShowForm] = useState(false)
+  const [products,       setProducts]       = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [error,          setError]          = useState(null)
+  const [showForm,       setShowForm]       = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
 
   const fetchProducts = async () => {
@@ -570,16 +651,16 @@ function ProductsTab({ shopId }) {
 function ProductForm({ shopId, existingProduct, onClose, onSaved }) {
   const isEditing = !!existingProduct
   const [form, setForm] = useState({
-    name: existingProduct?.name || '',
-    description: existingProduct?.description || '',
-    price: existingProduct?.price || '',
+    name:          existingProduct?.name          || '',
+    description:   existingProduct?.description   || '',
+    price:         existingProduct?.price         || '',
     originalPrice: existingProduct?.originalPrice || '',
-    category: existingProduct?.category || categories[0],
-    stock: existingProduct?.stock ?? '',
-    tag: existingProduct?.tag || 'New',
+    category:      existingProduct?.category      || categories[0],
+    stock:         existingProduct?.stock         ?? '',
+    tag:           existingProduct?.tag           || 'New',
   })
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+  const [error,      setError]      = useState(null)
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -589,7 +670,13 @@ function ProductForm({ shopId, existingProduct, onClose, onSaved }) {
       setError('Please fill in name, description, price, and stock'); return
     }
     setSubmitting(true); setError(null)
-    const payload = { ...form, price: Number(form.price), originalPrice: form.originalPrice ? Number(form.originalPrice) : null, stock: Number(form.stock), shop: shopId }
+    const payload = {
+      ...form,
+      price:         Number(form.price),
+      originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
+      stock:         Number(form.stock),
+      shop:          shopId,
+    }
     try {
       isEditing ? await productsAPI.update(existingProduct._id, payload) : await productsAPI.create(payload)
       onSaved()
@@ -650,17 +737,22 @@ function ProductForm({ shopId, existingProduct, onClose, onSaved }) {
    SHOP SETTINGS TAB
 ══════════════════════════════════════════════ */
 function ShopSettingsTab({ shop, onShopUpdate }) {
-  const [form, setForm] = useState({ name: shop.name, description: shop.description, category: shop.category })
+  const [form,       setForm]       = useState({ name: shop.name, description: shop.description, category: shop.category })
+  const [gradient,   setGradient]   = useState(shop.gradient || DEFAULT_GRADIENT)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
-  const [saved, setSaved] = useState(false)
+  const [error,      setError]      = useState(null)
+  const [saved,      setSaved]      = useState(false)
 
-  const handleChange = (e) => { setForm({ ...form, [e.target.name]: e.target.value }); setSaved(false) }
+  const handleChange   = (e) => { setForm({ ...form, [e.target.name]: e.target.value }); setSaved(false) }
+  const handleGradient = (key, value) => { setGradient({ ...gradient, [key]: value }); setSaved(false) }
+  const applyPreset    = (preset) => { setGradient({ from: preset.from, to: preset.to, direction: preset.direction }); setSaved(false) }
+
+  const previewCSS = `linear-gradient(${gradient.direction}, ${gradient.from}, ${gradient.to})`
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setSubmitting(true); setError(null)
     try {
-      const res = await shopsAPI.update(shop._id, form)
+      const res = await shopsAPI.update(shop._id, { ...form, gradient })
       onShopUpdate(res.data.shop); setSaved(true)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update shop')
@@ -668,15 +760,132 @@ function ShopSettingsTab({ shop, onShopUpdate }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, padding: '1.75rem', boxShadow: shadow.card, maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <Field label="Shop name"><input type="text" name="name" value={form.name} onChange={handleChange} style={inputStyle} /></Field>
-      <Field label="Description"><textarea name="description" value={form.description} onChange={handleChange} rows={4} style={{ ...inputStyle, resize: 'vertical', fontFamily: font.family }} /></Field>
-      <Field label="Category">
-        <select name="category" value={form.category} onChange={handleChange} style={{ ...inputStyle, cursor: 'pointer' }}>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </Field>
+    <form onSubmit={handleSubmit} style={{ maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
+      {/* ── Basic Info ── */}
+      <div style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, padding: '1.75rem', boxShadow: shadow.card, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <h3 style={{ fontSize: font.base, fontWeight: 700, color: colors.dark, margin: 0 }}>Basic Info</h3>
+        <Field label="Shop name">
+          <input type="text" name="name" value={form.name} onChange={handleChange} style={inputStyle} />
+        </Field>
+        <Field label="Description">
+          <textarea name="description" value={form.description} onChange={handleChange} rows={4} style={{ ...inputStyle, resize: 'vertical', fontFamily: font.family }} />
+        </Field>
+        <Field label="Category">
+          <select name="category" value={form.category} onChange={handleChange} style={{ ...inputStyle, cursor: 'pointer' }}>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      {/* ── Appearance ── */}
+      <div style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, padding: '1.75rem', boxShadow: shadow.card, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <h3 style={{ fontSize: font.base, fontWeight: 700, color: colors.dark, margin: 0 }}>Shop Appearance</h3>
+
+        {/* Live preview */}
+        <div style={{ borderRadius: radius.lg, overflow: 'hidden', height: '76px', background: previewCSS, display: 'flex', alignItems: 'center', gap: '12px', padding: '0 1.25rem' }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Store size={20} color="#fff" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: 0 }}>{form.name || shop.name}</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', margin: '2px 0 0' }}>Preview</p>
+          </div>
+        </div>
+
+        {/* Preset swatches */}
+        <div>
+          <p style={{ fontSize: '11.5px', fontWeight: 600, color: colors.muted, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Presets</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            {gradientPresets.map((preset) => {
+              const isActive = gradient.from === preset.from && gradient.to === preset.to
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => applyPreset(preset)}
+                  title={preset.label}
+                  style={{
+                    height: '38px',
+                    borderRadius: radius.md,
+                    background: `linear-gradient(135deg, ${preset.from}, ${preset.to})`,
+                    border: isActive ? `2px solid ${colors.dark}` : '2px solid transparent',
+                    cursor: 'pointer',
+                    outline: isActive ? '2px solid white' : 'none',
+                    outlineOffset: '-4px',
+                    transition: transition.fast,
+                  }}
+                />
+              )
+            })}
+          </div>
+          {/* Preset labels */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '4px' }}>
+            {gradientPresets.map((preset) => (
+              <p key={preset.label} style={{ fontSize: '10px', color: colors.muted, margin: 0, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {preset.label}
+              </p>
+            ))}
+          </div>
+        </div>
+
+        {/* Custom color pickers */}
+        <div>
+          <p style={{ fontSize: '11.5px', fontWeight: 600, color: colors.muted, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Custom Colors</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Field label="From">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: '8px 12px', backgroundColor: colors.white }}>
+                <input
+                  type="color"
+                  value={gradient.from}
+                  onChange={(e) => handleGradient('from', e.target.value)}
+                  style={{ width: '28px', height: '28px', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '4px', background: 'none' }}
+                />
+                <span style={{ fontSize: '12.5px', color: colors.dark, fontFamily: 'monospace' }}>{gradient.from}</span>
+              </div>
+            </Field>
+            <Field label="To">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: '8px 12px', backgroundColor: colors.white }}>
+                <input
+                  type="color"
+                  value={gradient.to}
+                  onChange={(e) => handleGradient('to', e.target.value)}
+                  style={{ width: '28px', height: '28px', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '4px', background: 'none' }}
+                />
+                <span style={{ fontSize: '12.5px', color: colors.dark, fontFamily: 'monospace' }}>{gradient.to}</span>
+              </div>
+            </Field>
+          </div>
+        </div>
+
+        {/* Direction picker */}
+        <div>
+          <p style={{ fontSize: '11.5px', fontWeight: 600, color: colors.muted, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Direction</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {directions.map((d) => (
+              <button
+                key={d.value}
+                type="button"
+                onClick={() => handleGradient('direction', d.value)}
+                style={{
+                  width: '42px', height: '42px',
+                  borderRadius: radius.md,
+                  border: gradient.direction === d.value ? `2px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                  backgroundColor: gradient.direction === d.value ? colors.primaryLight : colors.white,
+                  color: gradient.direction === d.value ? colors.primary : colors.muted,
+                  fontSize: '18px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: transition.fast,
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Actions ── */}
       {error && <ErrorBox>{error}</ErrorBox>}
       {saved && (
         <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: radius.md, padding: '10px 14px', fontSize: font.sm, color: '#16A34A', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -684,7 +893,11 @@ function ShopSettingsTab({ shop, onShopUpdate }) {
         </div>
       )}
 
-      <button type="submit" disabled={submitting} style={{ backgroundColor: submitting ? '#A5B4FC' : colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '13px', fontSize: font.md, fontWeight: 600, fontFamily: font.family, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+      <button
+        type="submit"
+        disabled={submitting}
+        style={{ backgroundColor: submitting ? '#A5B4FC' : colors.primary, color: colors.white, border: 'none', borderRadius: radius.md, padding: '13px', fontSize: font.md, fontWeight: 600, fontFamily: font.family, cursor: submitting ? 'not-allowed' : 'pointer' }}
+      >
         {submitting ? 'Saving...' : 'Save Changes'}
       </button>
     </form>

@@ -25,20 +25,22 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('card')
   const [couponCode, setCouponCode] = useState('')
   const [placing, setPlacing] = useState(false)
+  const [placed, setPlaced] = useState(false)   // ← prevents cart-empty redirect after order
   const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!user) router.push('/auth/login?redirect=/checkout')
   }, [user])
 
+  // Only redirect to cart if order hasn't been placed yet
   useEffect(() => {
-    if (items.length === 0) router.push('/cart')
-  }, [items])
+    if (items.length === 0 && !placed) router.push('/cart')
+  }, [items, placed])
 
-  const subtotal    = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const discount    = couponCode.toLowerCase() === 'save10' ? subtotal * 0.1 : 0
+  const subtotal     = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const discount     = couponCode.toLowerCase() === 'save10' ? subtotal * 0.1 : 0
   const shippingCost = subtotal > 50 ? 0 : 9.99
-  const total       = subtotal - discount + shippingCost
+  const total        = subtotal - discount + shippingCost
 
   const handleAddressChange = (e) => setAddress({ ...address, [e.target.name]: e.target.value })
   const isAddressComplete   = Object.values(address).every((v) => v.trim() !== '')
@@ -62,6 +64,7 @@ export default function CheckoutPage() {
         paymentMethod,
         couponCode: couponCode || undefined,
       })
+      setPlaced(true)   // ← set BEFORE clearCart so useEffect doesn't redirect to /cart
       clearCart()
       router.push(`/orders/${res.data.order._id}?success=1`)
     } catch (err) {
@@ -70,7 +73,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (!user || items.length === 0) return null
+  if (!user || (items.length === 0 && !placed)) return null
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem 5rem', fontFamily: font.family }}>
@@ -141,12 +144,7 @@ export default function CheckoutPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               {items.map((item) => (
                 <div key={item.id || item._id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: '48px', height: '48px', minWidth: '48px',
-                    backgroundColor: colors.surface, border: `1px solid ${colors.border}`,
-                    borderRadius: radius.md, overflow: 'hidden',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
+                  <div style={{ width: '48px', height: '48px', minWidth: '48px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radius.md, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {item.images?.[0]
                       ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <Package size={20} color={colors.muted} strokeWidth={1.5} />
@@ -192,11 +190,7 @@ export default function CheckoutPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: font.base }}>
             <Row label="Subtotal"  value={`$${subtotal.toFixed(2)}`} />
             {discount > 0 && <Row label="Discount" value={`−$${discount.toFixed(2)}`} green />}
-            <Row
-              label="Shipping"
-              value={shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}
-              green={shippingCost === 0}
-            />
+            <Row label="Shipping" value={shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`} green={shippingCost === 0} />
           </div>
 
           <div style={{ borderTop: `1px solid ${colors.border}`, margin: '1.25rem 0' }} />
@@ -235,8 +229,6 @@ export default function CheckoutPage() {
     </div>
   )
 }
-
-/* ── Shared sub-components ── */
 
 function Section({ title, children }) {
   return (
