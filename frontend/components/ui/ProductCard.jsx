@@ -28,7 +28,7 @@ export default function ProductCard({ product, onAddToCart }) {
     <div
       style={{
         backgroundColor: colors.white,
-        borderRadius: '10px',
+        borderRadius: '8px',
         border: `1px solid ${hovered ? colors.primary + '33' : colors.border}`,
         overflow: 'hidden',
         transition: transition.slow,
@@ -72,7 +72,7 @@ export default function ProductCard({ product, onAddToCart }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '28px',
+              fontSize: '24px',
               transition: transition.base,
             }}>
               {product.icon || '📦'}
@@ -102,16 +102,16 @@ export default function ProductCard({ product, onAddToCart }) {
       </Link>
 
       {/* INFO */}
-      <div style={{ padding: '6px 7px 7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div style={{ padding: '5px 6px 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
 
         <Link href={`/products/${productId}`} style={{ textDecoration: 'none' }}>
           <p style={{
             margin: 0,
-            fontSize: '11.5px',
+            fontSize: '11px',
             fontWeight: '600',
             color: hovered ? colors.primary : colors.dark,
             fontFamily: font.family,
-            lineHeight: '1.25',
+            lineHeight: '1.2',
             transition: transition.base,
             display: '-webkit-box',
             WebkitLineClamp: 2,
@@ -128,23 +128,23 @@ export default function ProductCard({ product, onAddToCart }) {
             qty stepper never reflows the row or resizes the card */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1px', gap: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', minWidth: 0, overflow: 'hidden' }}>
-            <span style={{ fontSize: '12.5px', fontWeight: '700', color: colors.dark, fontFamily: font.family, whiteSpace: 'nowrap' }}>
-              ${product.price}
+            <span style={{ fontSize: '11.5px', fontWeight: '700', color: colors.dark, fontFamily: font.family, whiteSpace: 'nowrap' }}>
+              ₹{Math.round(product.price)}
             </span>
             {product.originalPrice && (
-              <span style={{ fontSize: '9.5px', color: colors.muted, textDecoration: 'line-through', fontFamily: font.family, whiteSpace: 'nowrap' }}>
-                ${product.originalPrice}
+              <span style={{ fontSize: '9px', color: colors.muted, textDecoration: 'line-through', fontFamily: font.family, whiteSpace: 'nowrap' }}>
+                ₹{Math.round(product.originalPrice)}
               </span>
             )}
           </div>
 
-          <div style={{ width: '58px', minWidth: '58px', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+          <div style={{ width: '52px', minWidth: '52px', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
             {qty === 0 ? (
               <button onClick={handleAdd} aria-label="Add to cart" style={{
                 backgroundColor: colors.primary, color: '#fff', border: 'none',
-                borderRadius: '50%', width: '22px', height: '22px', minWidth: '22px',
+                borderRadius: '50%', width: '20px', height: '20px', minWidth: '20px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: '700', cursor: 'pointer',
+                fontSize: '13px', fontWeight: '700', cursor: 'pointer',
                 flexShrink: 0, transition: transition.base,
               }}>+</button>
             ) : (
@@ -155,18 +155,18 @@ export default function ProductCard({ product, onAddToCart }) {
               }}>
                 <button onClick={(e) => { e.preventDefault(); setQty(q => q - 1) }} style={{
                   backgroundColor: 'transparent', color: '#22C55E', border: 'none',
-                  width: '16px', height: '16px', borderRadius: '50%',
+                  width: '14px', height: '14px', borderRadius: '50%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '12px', fontWeight: '700', cursor: 'pointer', padding: 0, flexShrink: 0,
+                  fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: 0, flexShrink: 0,
                 }}>−</button>
-                <span style={{ fontSize: '10px', fontWeight: '700', color: '#16A34A', minWidth: '10px', textAlign: 'center', fontFamily: font.family }}>
+                <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#16A34A', minWidth: '9px', textAlign: 'center', fontFamily: font.family }}>
                   {qty}
                 </span>
                 <button onClick={handleAdd} style={{
                   backgroundColor: '#22C55E', color: '#fff', border: 'none',
-                  width: '16px', height: '16px', borderRadius: '50%',
+                  width: '14px', height: '14px', borderRadius: '50%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: 0, flexShrink: 0,
+                  fontSize: '10px', fontWeight: '700', cursor: 'pointer', padding: 0, flexShrink: 0,
                 }}>+</button>
               </div>
             )}

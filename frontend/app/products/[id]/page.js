@@ -20,7 +20,7 @@ function Stars({ rating, size = 14 }) {
 
 function Pill({ label, color = colors.primary, bg = colors.primaryLight }) {
   return (
-    <span style={{ fontSize: '11px', fontWeight: '600', color, backgroundColor: bg, padding: '3px 9px', borderRadius: radius.full, fontFamily: font.family, letterSpacing: '0.02em' }}>
+    <span style={{ fontSize: '10.5px', fontWeight: '600', color, backgroundColor: bg, padding: '3px 8px', borderRadius: radius.full, fontFamily: font.family, letterSpacing: '0.02em' }}>
       {label}
     </span>
   )
@@ -115,10 +115,36 @@ export default function ProductPage({ params }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family }}>
+    <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family, paddingBottom: '96px' }}>
       <style>{`
         .pd-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
         @media (min-width: 768px) { .pd-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } }
+
+        /* Media column — edge-to-edge on mobile, boxed with thumbnails on desktop */
+        .pd-media-col { padding: 0; border-right: none; }
+        @media (min-width: 768px) { .pd-media-col { padding: 16px; border-right: 1px solid ${colors.border}; } }
+
+        .pd-main-image { aspect-ratio: 1 / 1; border-radius: 0; }
+        @media (min-width: 768px) { .pd-main-image { aspect-ratio: 4 / 5; border-radius: 12px; } }
+
+        .pd-dots { display: flex; justify-content: center; align-items: center; gap: 5px; padding: 8px 0 2px; }
+        @media (min-width: 768px) { .pd-dots { display: none; } }
+        .pd-dot { width: 6px; height: 6px; border-radius: 3px; border: none; padding: 0; cursor: pointer; background: ${colors.border}; transition: ${transition.base}; }
+        .pd-dot.active { width: 16px; background: ${colors.primary}; }
+
+        .pd-thumbs { display: none; }
+        @media (min-width: 768px) { .pd-thumbs { display: flex; gap: 6px; margin-top: 10px; padding: 0 0; } }
+
+        /* Info column — tighter on mobile */
+        .pd-info-col { padding: 12px 14px 14px; gap: 10px; }
+        @media (min-width: 768px) { .pd-info-col { padding: 16px; gap: 14px; } }
+
+        /* CTA — inline row on desktop, sticky bar on mobile */
+        .pd-cta-inline { display: none; }
+        @media (min-width: 768px) { .pd-cta-inline { display: flex; } }
+        .pd-cta-sticky { position: fixed; bottom: 64px; left: 0; right: 0; z-index: 20; background: ${colors.white}; border-top: 1px solid ${colors.border}; box-shadow: ${shadow.card}; padding: 10px 14px; display: flex; }
+        @media (min-width: 768px) { .pd-cta-sticky { display: none; } }
+
         .related-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         @media (min-width: 640px) { .related-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; } }
         .tab-btn { background: none; border: none; cursor: pointer; font-family: inherit; }
@@ -133,33 +159,28 @@ export default function ProductPage({ params }) {
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1rem' }}>
 
         {/* Breadcrumb */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: colors.muted, padding: '0.6rem 0 0.8rem' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: colors.muted, padding: '0.6rem 0 0.6rem' }}>
           <Link href="/" style={{ color: colors.muted, textDecoration: 'none' }}>Home</Link>
-          <span style={{ color: colors.border }}>/</span>
+          <span style={{ color: colors.border }}> / </span>
           <Link href="/shops" style={{ color: colors.muted, textDecoration: 'none' }}>Shops</Link>
-          <span style={{ color: colors.border }}>/</span>
-          <Link href={`/shops/${product.shop?._id || product.shopId}`} style={{ color: colors.muted, textDecoration: 'none' }}>{product.shop?.name || product.shopName}</Link>
-          <span style={{ color: colors.border }}>/</span>
-          <span style={{ color: colors.dark, fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>{product.name}</span>
+          <span style={{ color: colors.border }}> / </span>
+          <span style={{ color: colors.dark, fontWeight: '500' }}>{product.name}</span>
         </nav>
 
         {/* Main Grid */}
-        <div className="pd-grid" style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, overflow: 'hidden', marginBottom: '12px', boxShadow: shadow.card }}>
+        <div className="pd-grid" style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, overflow: 'hidden', marginBottom: '10px', boxShadow: shadow.card }}>
 
           {/* Left — Image */}
-          <div style={{ padding: '16px', borderRight: `1px solid ${colors.border}` }}>
+          <div className="pd-media-col">
 
-            {/* Main image */}
-            <div style={{
-              aspectRatio: '4/5',
+            {/* Main image — edge-to-edge on mobile */}
+            <div className="pd-main-image" style={{
               backgroundColor: '#F5F5F5',
-              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 'clamp(72px, 18vw, 110px)',
               overflow: 'hidden',
-              marginBottom: '10px',
             }}>
               {product.images?.[activeThumb] ? (
                 <img src={product.images[activeThumb]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
@@ -168,9 +189,23 @@ export default function ProductPage({ params }) {
               )}
             </div>
 
-            {/* Thumbnails — only show if images exist */}
+            {/* Dots — mobile only */}
+            {product.images?.length > 1 && (
+              <div className="pd-dots">
+                {product.images.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`pd-dot ${activeThumb === i ? 'active' : ''}`}
+                    onClick={() => setActiveThumb(i)}
+                    aria-label={`Show image ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Thumbnails — desktop only */}
             {product.images?.length > 0 && (
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className="pd-thumbs">
                 {product.images.slice(0, 3).map((img, i) => (
                   <button
                     key={i}
@@ -197,7 +232,7 @@ export default function ProductPage({ params }) {
           </div>
 
           {/* Right — Info */}
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="pd-info-col" style={{ display: 'flex', flexDirection: 'column' }}>
 
             {/* Pills row */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -207,22 +242,22 @@ export default function ProductPage({ params }) {
             </div>
 
             {/* Name */}
-            <h1 style={{ margin: 0, fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: '800', color: colors.dark, lineHeight: '1.2', letterSpacing: '-0.02em' }}>
+            <h1 style={{ margin: 0, fontSize: 'clamp(1rem, 3vw, 1.5rem)', fontWeight: '800', color: colors.dark, lineHeight: '1.2', letterSpacing: '-0.02em' }}>
               {product.name}
             </h1>
 
             {/* Rating row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Stars rating={product.rating} />
-              <span style={{ fontSize: '13px', fontWeight: '600', color: colors.dark }}>{product.rating}</span>
-              <span style={{ fontSize: '12px', color: colors.muted }}>({product.reviews} reviews)</span>
+              <span style={{ fontSize: '12.5px', fontWeight: '600', color: colors.dark }}>{product.rating}</span>
+              <span style={{ fontSize: '11.5px', color: colors.muted }}>({product.reviews} reviews)</span>
             </div>
 
             {/* Price */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ fontSize: 'clamp(1.4rem, 4vw, 1.8rem)', fontWeight: '800', color: colors.dark }}>${product.price}</span>
+              <span style={{ fontSize: 'clamp(1.25rem, 4vw, 1.8rem)', fontWeight: '800', color: colors.dark }}>₹{Math.round(product.price)}</span>
               {product.originalPrice && (
-                <span style={{ fontSize: '14px', color: colors.muted, textDecoration: 'line-through' }}>${product.originalPrice}</span>
+                <span style={{ fontSize: '13px', color: colors.muted, textDecoration: 'line-through' }}>₹{Math.round(product.originalPrice)}</span>
               )}
             </div>
 
@@ -232,7 +267,7 @@ export default function ProductPage({ params }) {
             {/* Color selector */}
             {product.colors.length > 0 && (
               <div>
-                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <p style={{ margin: '0 0 7px', fontSize: '11px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Color — <span style={{ color: colors.primary, textTransform: 'none', letterSpacing: 0 }}>{selectedColor}</span>
                 </p>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -264,7 +299,7 @@ export default function ProductPage({ params }) {
             {/* Size selector */}
             {product.sizes.length > 0 && (
               <div>
-                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <p style={{ margin: '0 0 7px', fontSize: '11px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Size — <span style={{ color: colors.primary, textTransform: 'none', letterSpacing: 0 }}>{selectedSize}</span>
                 </p>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -274,8 +309,8 @@ export default function ProductPage({ params }) {
                       className="size-btn"
                       onClick={() => setSelectedSize(size)}
                       style={{
-                        minWidth: '40px',
-                        height: '36px',
+                        minWidth: '38px',
+                        height: '34px',
                         padding: '0 8px',
                         borderRadius: radius.sm,
                         fontSize: '12px',
@@ -297,58 +332,40 @@ export default function ProductPage({ params }) {
 
             {/* Quantity */}
             <div>
-              <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantity</p>
+              <p style={{ margin: '0 0 7px', fontSize: '11px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantity</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', border: `1.5px solid ${colors.border}`, borderRadius: radius.sm, overflow: 'hidden' }}>
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    style={{ width: '34px', height: '34px', background: 'none', border: 'none', fontSize: '18px', color: colors.dark, cursor: 'pointer', fontFamily: font.family, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '32px', height: '32px', background: 'none', border: 'none', fontSize: '17px', color: colors.dark, cursor: 'pointer', fontFamily: font.family, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >−</button>
-                  <span style={{ width: '32px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: colors.dark, fontFamily: font.family }}>{quantity}</span>
+                  <span style={{ width: '30px', textAlign: 'center', fontSize: '13.5px', fontWeight: '700', color: colors.dark, fontFamily: font.family }}>{quantity}</span>
                   <button
                     onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    style={{ width: '34px', height: '34px', background: 'none', border: 'none', fontSize: '18px', color: colors.dark, cursor: 'pointer', fontFamily: font.family, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '32px', height: '32px', background: 'none', border: 'none', fontSize: '17px', color: colors.dark, cursor: 'pointer', fontFamily: font.family, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >+</button>
                 </div>
-                <span style={{ fontSize: '11.5px', color: colors.muted }}>{product.stock} in stock</span>
+                <span style={{ fontSize: '11px', color: colors.muted }}>{product.stock} in stock</span>
               </div>
             </div>
 
-            {/* CTA buttons */}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+            {/* CTA buttons — inline on desktop only, mobile uses the sticky bar below */}
+            <div className="pd-cta-inline" style={{ gap: '8px', marginTop: '2px' }}>
               <button
                 onClick={handleAddToCart}
                 style={{
-                  flex: 1,
-                  padding: '11px 0',
-                  borderRadius: radius.md,
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  fontFamily: font.family,
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: transition.base,
-                  backgroundColor: added ? '#22C55E' : colors.primary,
-                  color: '#fff',
-                  letterSpacing: '0.01em',
+                  flex: 1, padding: '11px 0', borderRadius: radius.md, fontSize: '13px', fontWeight: '700',
+                  fontFamily: font.family, border: 'none', cursor: 'pointer', transition: transition.base,
+                  backgroundColor: added ? '#22C55E' : colors.primary, color: '#fff', letterSpacing: '0.01em',
                 }}
               >
                 {added ? '✓ Added!' : 'Add to cart'}
               </button>
               <button
                 style={{
-                  flex: 1,
-                  padding: '11px 0',
-                  borderRadius: radius.md,
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  fontFamily: font.family,
-                  border: `1.5px solid ${colors.border}`,
-                  cursor: 'pointer',
-                  transition: transition.base,
-                  backgroundColor: colors.white,
-                  color: colors.dark,
-                  letterSpacing: '0.01em',
+                  flex: 1, padding: '11px 0', borderRadius: radius.md, fontSize: '13px', fontWeight: '700',
+                  fontFamily: font.family, border: `1.5px solid ${colors.border}`, cursor: 'pointer', transition: transition.base,
+                  backgroundColor: colors.white, color: colors.dark, letterSpacing: '0.01em',
                 }}
               >
                 Buy now
@@ -358,7 +375,7 @@ export default function ProductPage({ params }) {
             {/* Shop link */}
             <Link
               href={`/shops/${product.shop?._id || product.shopId}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: colors.muted, textDecoration: 'none', marginTop: '-4px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: colors.muted, textDecoration: 'none' }}
             >
               <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -369,7 +386,7 @@ export default function ProductPage({ params }) {
         </div>
 
         {/* Tabs section */}
-        <div style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, overflow: 'hidden', marginBottom: '12px', boxShadow: shadow.card }}>
+        <div style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, overflow: 'hidden', marginBottom: '10px', boxShadow: shadow.card }}>
 
           {/* Tab bar */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${colors.border}` }}>
@@ -379,8 +396,8 @@ export default function ProductPage({ params }) {
                 className="tab-btn"
                 onClick={() => setActiveTab(tab)}
                 style={{
-                  padding: '11px 16px',
-                  fontSize: '12.5px',
+                  padding: '10px 14px',
+                  fontSize: '12px',
                   fontWeight: activeTab === tab ? '700' : '500',
                   color: activeTab === tab ? colors.primary : colors.muted,
                   borderBottom: `2px solid ${activeTab === tab ? colors.primary : 'transparent'}`,
@@ -395,14 +412,14 @@ export default function ProductPage({ params }) {
           </div>
 
           {/* Tab content */}
-          <div style={{ padding: '16px' }}>
+          <div style={{ padding: '14px' }}>
 
             {activeTab === 'description' && (
               <div style={{ maxWidth: '600px' }}>
-                <p style={{ fontSize: '13px', color: colors.muted, lineHeight: '1.7', margin: '0 0 12px' }}>{product.description}</p>
+                <p style={{ fontSize: '12.5px', color: colors.muted, lineHeight: '1.7', margin: '0 0 12px' }}>{product.description}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {['Premium quality materials', 'Free shipping over $50', '30-day easy returns', '1 year warranty'].map((item) => (
-                    <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: colors.muted }}>
+                  {['Premium quality materials', 'Free shipping over ₹999', '30-day easy returns', '1 year warranty'].map((item) => (
+                    <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: colors.muted }}>
                       <svg width="14" height="14" fill="none" stroke="#22C55E" viewBox="0 0 24 24" strokeWidth={2.5} style={{ flexShrink: 0 }}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
@@ -440,8 +457,8 @@ export default function ProductPage({ params }) {
             {activeTab === 'shipping' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', maxWidth: '600px' }}>
                 {[
-                  { icon: '🚀', title: 'Express', desc: '1–2 days · $9.99' },
-                  { icon: '📦', title: 'Standard', desc: '3–5 days · Free over $50' },
+                  { icon: '🚀', title: 'Express', desc: '1–2 days · ₹99' },
+                  { icon: '📦', title: 'Standard', desc: '3–5 days · Free over ₹999' },
                   { icon: '🔄', title: 'Returns', desc: '30-day hassle-free' },
                   { icon: '🌍', title: 'International', desc: '7–14 days · rates vary' },
                 ].map((item) => (
@@ -460,7 +477,7 @@ export default function ProductPage({ params }) {
 
         {/* Related products */}
         {relatedProducts.length > 0 && (
-          <div style={{ paddingBottom: '2rem' }}>
+          <div style={{ paddingBottom: '1.5rem' }}>
             <h2 style={{ fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', fontWeight: '700', color: colors.dark, margin: '0 0 10px' }}>
               You may also like
             </h2>
@@ -481,7 +498,7 @@ export default function ProductPage({ params }) {
                   <div style={{ padding: '8px 10px' }}>
                     <p className="related-name" style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: '600', color: colors.dark, transition: transition.base, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '800', color: colors.dark }}>${p.price}</span>
+                      <span style={{ fontSize: '13px', fontWeight: '800', color: colors.dark }}>₹{Math.round(p.price)}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <svg width="11" height="11" viewBox="0 0 24 24" style={{ fill: '#FBBF24' }}>
                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -496,6 +513,32 @@ export default function ProductPage({ params }) {
           </div>
         )}
 
+      </div>
+
+      {/* Sticky Add to Cart / Buy Now — mobile only, sits above the global bottom tab nav */}
+      <div className="pd-cta-sticky">
+        <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleAddToCart}
+            style={{
+              flex: 1, padding: '12px 0', borderRadius: radius.md, fontSize: '13.5px', fontWeight: '700',
+              fontFamily: font.family, border: `1.5px solid ${colors.primary}`, cursor: 'pointer', transition: transition.base,
+              backgroundColor: added ? '#22C55E' : colors.white, color: added ? '#fff' : colors.primary, letterSpacing: '0.01em',
+              borderColor: added ? '#22C55E' : colors.primary,
+            }}
+          >
+            {added ? '✓ Added!' : 'Add to cart'}
+          </button>
+          <button
+            style={{
+              flex: 1, padding: '12px 0', borderRadius: radius.md, fontSize: '13.5px', fontWeight: '700',
+              fontFamily: font.family, border: 'none', cursor: 'pointer', transition: transition.base,
+              backgroundColor: colors.primary, color: '#fff', letterSpacing: '0.01em',
+            }}
+          >
+            Buy now
+          </button>
+        </div>
       </div>
     </div>
   )
