@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, ArrowLeft, Check, Lock, RotateCcw, Zap, Package } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, X, Tag, Check, Lock, RotateCcw, Zap, Package } from 'lucide-react'
 import useCartStore from '@/store/useCartStore'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
@@ -19,6 +19,7 @@ export default function CartPage() {
   const discount = couponApplied ? subtotal * 0.1 : 0
   const shipping = subtotal > 50 ? 0 : 9.99
   const total = subtotal - discount + shipping
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
 
   const applyCoupon = () => {
     if (coupon.toLowerCase() === 'save10') {
@@ -46,123 +47,185 @@ export default function CartPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem 5rem', fontFamily: font.family }}>
+    <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family, paddingBottom: '156px' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: '700', color: colors.dark, marginBottom: '6px' }}>Your Cart</h1>
-        <p style={{ fontSize: font.base, color: colors.muted }}>{items.length} item{items.length > 1 ? 's' : ''}</p>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: colors.white, borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 1rem' }}>
+        <Link href="/shops" aria-label="Back" style={{ display: 'flex', color: colors.dark }}>
+          <ChevronLeft size={20} />
+        </Link>
+        <span style={{ fontSize: '15px', fontWeight: '700', color: colors.dark }}>
+          My cart <span style={{ fontWeight: '400', color: colors.muted }}>({itemCount} item{itemCount > 1 ? 's' : ''})</span>
+        </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ maxWidth: '560px', margin: '0 auto', padding: '10px 1rem 0' }}>
 
-        {/* Cart Items */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {items.map((item) => (
+        {/* Cart items */}
+        <div style={{ backgroundColor: colors.white, borderRadius: radius.lg, border: `1px solid ${colors.border}`, overflow: 'hidden' }}>
+          {items.map((item, i) => (
             <CartItem
               key={item.id || item._id}
               item={item}
+              isFirst={i === 0}
               onRemove={removeItem}
               onUpdateQty={updateQuantity}
             />
           ))}
-
-          <Link
-            href="/shops"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: font.base, color: colors.primary, textDecoration: 'none', fontWeight: '500', marginTop: '8px' }}
-          >
-            <ArrowLeft size={16} strokeWidth={1.5} />
-            Continue Shopping
-          </Link>
         </div>
 
-        {/* Order Summary */}
-        <div style={{ backgroundColor: colors.white, borderRadius: '20px', border: `1px solid ${colors.border}`, padding: '1.5rem', boxShadow: shadow.card, position: 'sticky', top: '80px' }}>
-          <h2 style={{ fontSize: font.lg, fontWeight: '600', color: colors.dark, marginBottom: '1.25rem' }}>Order Summary</h2>
+        <Link
+          href="/shops"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: font.sm, color: colors.primary, textDecoration: 'none', fontWeight: '500', margin: '10px 0 0' }}
+        >
+          Continue shopping
+        </Link>
 
-          {/* Price Rows */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: font.base }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: colors.muted }}>Subtotal</span>
-              <span style={{ fontWeight: '500', color: colors.dark }}>${subtotal.toFixed(2)}</span>
+        {/* Coupon */}
+        <div style={{ backgroundColor: colors.white, borderRadius: radius.lg, border: `1px solid ${colors.border}`, padding: '12px 14px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: couponApplied || couponError ? '8px' : 0 }}>
+            <Tag size={15} color={colors.primary} />
+            <input
+              type="text"
+              placeholder="Enter coupon code"
+              value={coupon}
+              onChange={(e) => { setCoupon(e.target.value); setCouponError(false) }}
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: font.sm, fontFamily: font.family, color: colors.dark, backgroundColor: 'transparent' }}
+            />
+            <button
+              onClick={applyCoupon}
+              style={{ padding: '6px 14px', border: 'none', borderRadius: radius.full, fontSize: '12px', fontFamily: font.family, cursor: 'pointer', backgroundColor: colors.primary, color: colors.white, fontWeight: '600', whiteSpace: 'nowrap' }}
+            >
+              Apply
+            </button>
+          </div>
+          {couponApplied && (
+            <p style={{ fontSize: font.xs, color: '#16A34A', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Check size={13} strokeWidth={2} />
+              Coupon applied — 10% off
+            </p>
+          )}
+          {couponError && (
+            <p style={{ fontSize: font.xs, color: colors.red, margin: 0 }}>Invalid code. Try SAVE10</p>
+          )}
+        </div>
+
+        {/* Price details */}
+        <div style={{ backgroundColor: colors.white, borderRadius: radius.lg, border: `1px solid ${colors.border}`, padding: '14px', marginTop: '12px' }}>
+          <p style={{ fontSize: font.sm, fontWeight: '700', color: colors.dark, margin: '0 0 10px' }}>Price details</p>
+
+          <PriceRow label="Subtotal" value={`₹${Math.round(subtotal)}`} />
+          {couponApplied && (
+            <PriceRow label="Discount (10%)" value={`− ₹${Math.round(discount)}`} valueColor="#16A34A" />
+          )}
+          <PriceRow label="Shipping" value={shipping === 0 ? 'Free' : `₹${shipping.toFixed(2)}`} valueColor={shipping === 0 ? '#16A34A' : undefined} />
+          {shipping > 0 && (
+            <p style={{ fontSize: font.xs, color: '#9CA3AF', margin: '2px 0 0' }}>
+              Add ₹{Math.round(50 - subtotal)} more for free shipping
+            </p>
+          )}
+
+          <div style={{ borderTop: `1px dashed ${colors.border}`, margin: '10px 0' }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: font.md, fontWeight: '700', color: colors.dark }}>Total</span>
+            <span style={{ fontSize: '18px', fontWeight: '800', color: colors.dark }}>₹{Math.round(total)}</span>
+          </div>
+        </div>
+
+        {/* Trust badges */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', margin: '12px 0 0' }}>
+          {[
+            { icon: <Lock size={16} strokeWidth={1.5} color={colors.muted} />, label: 'Secure pay' },
+            { icon: <RotateCcw size={16} strokeWidth={1.5} color={colors.muted} />, label: 'Easy returns' },
+            { icon: <Zap size={16} strokeWidth={1.5} color={colors.muted} />, label: 'Fast ship' },
+          ].map((badge) => (
+            <div key={badge.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '10px 4px', backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.md }}>
+              {badge.icon}
+              <span style={{ fontSize: font.xs, color: colors.muted, fontWeight: '500', textAlign: 'center' }}>{badge.label}</span>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sticky checkout bar — sits above the global bottom tab nav (Home/Shops/Categories/Login), not underneath it */}
+      <div style={{ position: 'fixed', bottom: '64px', left: 0, right: 0, backgroundColor: colors.white, borderTop: `1px solid ${colors.border}`, boxShadow: shadow.card, padding: '10px 1rem', zIndex: 20 }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: colors.dark }}>₹{Math.round(total)}</p>
             {couponApplied && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A' }}>
-                <span>Discount (10%)</span>
-                <span>−${discount.toFixed(2)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: colors.muted }}>Shipping</span>
-              <span style={{ fontWeight: '500', color: shipping === 0 ? '#16A34A' : colors.dark }}>
-                {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
-              </span>
-            </div>
-            {shipping > 0 && (
-              <p style={{ fontSize: font.xs, color: '#9CA3AF' }}>
-                Add ${(50 - subtotal).toFixed(2)} more for free shipping
-              </p>
+              <p style={{ margin: 0, fontSize: font.xs, color: '#16A34A', fontWeight: '600' }}>You saved ₹{Math.round(discount)}</p>
             )}
           </div>
-
-          <div style={{ borderTop: `1px solid ${colors.border}`, margin: '1.25rem 0' }} />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.25rem' }}>
-            <span style={{ fontSize: font.md, fontWeight: '600', color: colors.dark }}>Total</span>
-            <span style={{ fontSize: '22px', fontWeight: '700', color: colors.dark }}>${total.toFixed(2)}</span>
-          </div>
-
-          {/* Coupon */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <p style={{ fontSize: font.base, fontWeight: '500', color: colors.dark, marginBottom: '8px' }}>Coupon Code</p>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="Enter code"
-                value={coupon}
-                onChange={(e) => { setCoupon(e.target.value); setCouponError(false) }}
-                style={{ flex: 1, border: `1px solid ${colors.border}`, borderRadius: radius.md, padding: '9px 12px', fontSize: font.base, fontFamily: font.family, outline: 'none', color: colors.dark, backgroundColor: colors.white }}
-                onFocus={(e) => e.target.style.borderColor = colors.primary}
-                onBlur={(e) => e.target.style.borderColor = colors.border}
-              />
-              <button
-                onClick={applyCoupon}
-                style={{ padding: '9px 16px', border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: font.base, fontFamily: font.family, cursor: 'pointer', backgroundColor: colors.white, color: colors.dark, fontWeight: '500', whiteSpace: 'nowrap' }}
-              >
-                Apply
-              </button>
-            </div>
-            {couponApplied && (
-              <p style={{ fontSize: font.sm, color: '#16A34A', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Check size={14} strokeWidth={2} />
-                Coupon applied — 10% off
-              </p>
-            )}
-            {couponError && (
-              <p style={{ fontSize: font.sm, color: colors.red, marginTop: '6px' }}>Invalid code. Try SAVE10</p>
-            )}
-          </div>
-
-          {/* Checkout */}
           <Link
             href="/checkout"
-            style={{ display: 'block', width: '100%', padding: '14px', backgroundColor: colors.primary, color: colors.white, textDecoration: 'none', textAlign: 'center', borderRadius: radius.md, fontSize: font.md, fontWeight: '600', boxSizing: 'border-box' }}
+            style={{ backgroundColor: colors.primary, color: colors.white, textDecoration: 'none', textAlign: 'center', borderRadius: radius.md, padding: '12px 28px', fontSize: font.base, fontWeight: '700' }}
           >
-            Proceed to Checkout
+            Proceed to checkout
           </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-          {/* Trust Badges */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '1rem' }}>
-            {[
-              { icon: <Lock size={18} strokeWidth={1.5} color={colors.muted} />, label: 'Secure Pay' },
-              { icon: <RotateCcw size={18} strokeWidth={1.5} color={colors.muted} />, label: 'Easy Returns' },
-              { icon: <Zap size={18} strokeWidth={1.5} color={colors.muted} />, label: 'Fast Ship' },
-            ].map((badge) => (
-              <div key={badge.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '10px 4px', backgroundColor: colors.surface, borderRadius: radius.md }}>
-                {badge.icon}
-                <span style={{ fontSize: font.xs, color: colors.muted, fontWeight: '500' }}>{badge.label}</span>
-              </div>
-            ))}
+function CartItem({ item, isFirst, onRemove, onUpdateQty }) {
+  const itemKey = item.id || item._id
+
+  return (
+    <div style={{ display: 'flex', gap: '10px', padding: '12px', borderTop: isFirst ? 'none' : `1px solid ${colors.border}` }}>
+
+      {/* Image or fallback */}
+      <div style={{ width: '68px', height: '68px', minWidth: '68px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, borderRadius: '10px', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {item.images?.[0] ? (
+          <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <Package size={24} color={colors.muted} strokeWidth={1.5} />
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+          <p style={{ margin: 0, fontSize: '12.5px', fontWeight: '600', color: colors.dark, lineHeight: '1.3', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            {item.name}
+          </p>
+          <button
+            onClick={() => onRemove(itemKey)}
+            aria-label="Remove item"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', color: '#B5B5C3' }}
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <p style={{ margin: 0, fontSize: '11px', color: colors.muted }}>
+          {typeof item.shop === 'object' ? item.shop?.name : item.shop}
+          {(item.size || item.color) && ' · '}
+          {item.size && `Size: ${item.size}`}
+          {item.size && item.color && ' · '}
+          {item.color && `Color: ${item.color}`}
+        </p>
+
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '700', color: colors.dark }}>₹{Math.round(item.price)}</span>
+          {item.originalPrice && (
+            <span style={{ fontSize: '10.5px', color: '#B5B5C3', textDecoration: 'line-through' }}>₹{Math.round(item.originalPrice)}</span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
+          <span style={{ fontSize: '12.5px', fontWeight: '700', color: colors.dark }}>₹{Math.round(item.price * item.quantity)}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', border: `1px solid ${colors.primary}`, borderRadius: radius.full, padding: '2px 3px', flexShrink: 0 }}>
+            <button
+              onClick={() => onUpdateQty(itemKey, item.quantity - 1)}
+              style={{ width: '18px', height: '18px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: colors.primary, fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font.family }}
+            >−</button>
+            <span style={{ fontSize: '11.5px', fontWeight: '700', color: colors.dark, minWidth: '12px', textAlign: 'center' }}>{item.quantity}</span>
+            <button
+              onClick={() => onUpdateQty(itemKey, item.quantity + 1)}
+              style={{ width: '18px', height: '18px', borderRadius: '50%', border: 'none', backgroundColor: colors.primary, color: colors.white, fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font.family }}
+            >+</button>
           </div>
         </div>
       </div>
@@ -170,78 +233,11 @@ export default function CartPage() {
   )
 }
 
-function CartItem({ item, onRemove, onUpdateQty }) {
-  const [removeHovered, setRemoveHovered] = useState(false)
-  const itemKey = item.id || item._id
-
+function PriceRow({ label, value, valueColor }) {
   return (
-    <div style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, padding: '1rem', display: 'flex', gap: '1rem', boxShadow: shadow.card }}>
-
-      {/* Image or fallback */}
-      <div style={{ width: '72px', height: '72px', minWidth: '72px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, borderRadius: '12px', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {item.images?.[0] ? (
-          <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <Package size={28} color={colors.muted} strokeWidth={1.5} />
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: font.md, fontWeight: '500', color: colors.dark, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</h3>
-            <p style={{ fontSize: font.sm, color: colors.muted }}>
-              {typeof item.shop === 'object' ? item.shop?.name : item.shop}
-            </p>
-            <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-              {item.size && (
-                <span style={{ fontSize: '11px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted, padding: '2px 8px', borderRadius: '6px' }}>
-                  Size: {item.size}
-                </span>
-              )}
-              {item.color && (
-                <span style={{ fontSize: '11px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted, padding: '2px 8px', borderRadius: '6px' }}>
-                  Color: {item.color}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Remove */}
-          <button
-            onClick={() => onRemove(itemKey)}
-            onMouseEnter={() => setRemoveHovered(true)}
-            onMouseLeave={() => setRemoveHovered(false)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: removeHovered ? colors.red : '#9CA3AF', padding: '4px', borderRadius: '6px', flexShrink: 0, transition: transition.base, display: 'flex' }}
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Price + Qty */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button
-              onClick={() => onUpdateQty(itemKey, item.quantity - 1)}
-              style={{ width: '32px', height: '32px', borderRadius: '8px', border: `1px solid ${colors.border}`, backgroundColor: colors.white, cursor: 'pointer', fontSize: '16px', color: colors.dark, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font.family }}
-            >−</button>
-            <span style={{ width: '28px', textAlign: 'center', fontSize: font.base, fontWeight: '500', color: colors.dark }}>{item.quantity}</span>
-            <button
-              onClick={() => onUpdateQty(itemKey, item.quantity + 1)}
-              style={{ width: '32px', height: '32px', borderRadius: '8px', border: `1px solid ${colors.border}`, backgroundColor: colors.white, cursor: 'pointer', fontSize: '16px', color: colors.dark, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font.family }}
-            >+</button>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: font.md, fontWeight: '600', color: colors.dark }}>${(item.price * item.quantity).toFixed(2)}</p>
-            {item.originalPrice && (
-              <p style={{ fontSize: font.sm, color: '#9CA3AF', textDecoration: 'line-through' }}>${(item.originalPrice * item.quantity).toFixed(2)}</p>
-            )}
-          </div>
-        </div>
-      </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+      <span style={{ fontSize: font.sm, color: colors.muted }}>{label}</span>
+      <span style={{ fontSize: font.sm, fontWeight: '600', color: valueColor || colors.dark }}>{value}</span>
     </div>
   )
 }

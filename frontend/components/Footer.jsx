@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronDown } from 'lucide-react'
 
 export default function Footer() {
   const footerLinks = {
@@ -41,7 +42,7 @@ export default function Footer() {
         .ftr-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 2.5rem;
+          gap: 0;
         }
         @media (min-width: 640px) {
           .ftr-grid { grid-template-columns: repeat(2, 1fr); gap: 2rem; }
@@ -68,6 +69,45 @@ export default function Footer() {
           transition: all 0.2s;
         }
         .ftr-social:hover { color: #6366F1; border-color: #6366F1; background: #F5F3FF; }
+
+        /* Mobile accordion for link columns — native <details>, no JS.
+           Desktop (640px+) forces every section open and hides the toggle. */
+        .ftr-accordion {
+          border-top: 1px solid #E5E7EB;
+        }
+        .ftr-accordion:last-of-type {
+          border-bottom: 1px solid #E5E7EB;
+        }
+        .ftr-summary {
+          cursor: pointer;
+          list-style: none;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1rem 0;
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #111111;
+        }
+        .ftr-summary::-webkit-details-marker { display: none; }
+        .ftr-summary::marker { content: ''; }
+        .ftr-chevron { transition: transform 0.2s; color: #9CA3AF; flex-shrink: 0; }
+        .ftr-accordion[open] .ftr-chevron { transform: rotate(180deg); }
+        .ftr-accordion-content {
+          list-style: none;
+          margin: 0;
+          padding: 0 0 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        @media (min-width: 640px) {
+          .ftr-accordion, .ftr-accordion:last-of-type { border: none; }
+          .ftr-summary { cursor: default; pointer-events: none; padding: 0 0 1rem; }
+          .ftr-chevron { display: none; }
+          .ftr-accordion-content { display: flex !important; padding: 0; }
+        }
 
         .ftr-newsletter-row {
           display: flex;
@@ -141,11 +181,11 @@ export default function Footer() {
       <div className="ftr">
 
         {/* ── Main links ── */}
-        <div className="ftr-wrap" style={{ paddingTop: '3.5rem', paddingBottom: '3.5rem' }}>
+        <div className="ftr-wrap" style={{ paddingTop: '2.5rem', paddingBottom: '0.5rem' }}>
           <div className="ftr-grid">
 
-            {/* Brand column */}
-            <div>
+            {/* Brand column — always visible, never collapses */}
+            <div style={{ paddingBottom: '1.5rem' }}>
               <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', textDecoration: 'none' }}>
                 <div style={{ width: '32px', height: '32px', background: '#6366F1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ color: 'white', fontWeight: 700, fontSize: '0.875rem' }}>S</span>
@@ -164,20 +204,21 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* Link columns */}
+            {/* Link columns — collapsible on mobile, always-open columns on desktop */}
             {Object.entries(footerLinks).map(([title, links]) => (
-              <div key={title}>
-                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111111', marginBottom: '1rem' }}>
+              <details key={title} className="ftr-accordion">
+                <summary className="ftr-summary">
                   {title}
-                </h4>
-                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: 0, padding: 0 }}>
+                  <ChevronDown size={16} className="ftr-chevron" />
+                </summary>
+                <ul className="ftr-accordion-content">
                   {links.map((link) => (
                     <li key={link.label}>
                       <Link href={link.href} className="ftr-link">{link.label}</Link>
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             ))}
           </div>
         </div>
@@ -202,7 +243,7 @@ export default function Footer() {
           <div className="ftr-wrap" style={{ paddingTop: '1.25rem', paddingBottom: '1.25rem' }}>
             <div className="ftr-bottom-row">
               <p style={{ fontSize: '0.75rem', color: '#9CA3AF', margin: 0 }}>
-                © 2025 ShopHub. All rights reserved.
+                © 2026 ShopHub. All rights reserved.
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                 <Link href="/privacy" className="ftr-link" style={{ fontSize: '0.75rem' }}>Privacy</Link>
