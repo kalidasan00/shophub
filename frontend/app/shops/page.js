@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import ShopCard from '@/components/ui/ShopCard'
 import { shopsAPI } from '@/lib/api'
@@ -14,6 +14,29 @@ const sortOptions = [
 ]
 
 export default function ShopsPage() {
+  return (
+    <Suspense fallback={<ShopsFallback />}>
+      <ShopsContent />
+    </Suspense>
+  )
+}
+
+function ShopsFallback() {
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: colors.surface }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(1rem, 3vw, 2rem) 1.25rem' }}>
+        <div style={{ width: '160px', height: '28px', backgroundColor: colors.white, borderRadius: '8px', marginBottom: '16px' }} />
+        <div className="shops-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+          {[1,2,3,4,5,6].map((i) => (
+            <div key={i} style={{ backgroundColor: colors.white, borderRadius: '14px', border: `1px solid ${colors.border}`, height: '150px', animation: 'pulse 1.5s infinite' }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ShopsContent() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
