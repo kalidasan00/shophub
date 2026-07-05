@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { use } from 'react'
-import { MapPin, Star, ShoppingCart, Store } from 'lucide-react'
+import { MapPin, Star, ShoppingCart, Store, Heart, ChevronLeft } from 'lucide-react'
 import useCartStore from '@/store/useCartStore'
 import ProductCard from '@/components/ui/ProductCard'
 import { shopsAPI, productsAPI } from '@/lib/api'
@@ -17,6 +17,7 @@ export default function ShopPage({ params }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('All')
+  const [saved, setSaved] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
   const totalItems = useCartStore((state) => state.getTotalItems())
 
@@ -57,11 +58,15 @@ export default function ShopPage({ params }) {
   )
 
   const g = shop.gradient || { from: '#6366F1', to: '#8B5CF6', direction: '135deg' }
-  const brandGradient = `linear-gradient(${g.direction}, ${g.from}, ${g.to})`
   const brandColor = g.from
+  const brandGradient = `linear-gradient(${g.direction}, ${g.from}, ${g.to})`
+  const hasBanner = Boolean(shop.banner || shop.coverImage)
+  const bannerSrc = shop.banner || shop.coverImage
+  // Subtle brand wash so the whole page reads as "this shop's space", not just the banner
+  const pageTint = `${brandColor}26`
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family }}>
+    <div style={{ minHeight: '100vh', backgroundColor: pageTint, fontFamily: font.family }}>
       <style>{`
         .product-grid {
           display: grid;
@@ -78,86 +83,97 @@ export default function ShopPage({ params }) {
         .tab-scroll { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* ── HERO + TABS in one block ── */}
-      <div style={{ background: brandGradient, position: 'relative', overflow: 'hidden' }}>
+      {/* ── BANNER — real cover photo when the shop has one, brand gradient otherwise ── */}
+      <div style={{ position: 'relative', height: 'clamp(160px, 28vw, 220px)', overflow: 'hidden' }}>
+        {hasBanner ? (
+          <>
+            <img src={bannerSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.5) 100%)' }} />
+          </>
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: brandGradient, position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.07) 0%, transparent 50%)' }} />
+          </div>
+        )}
 
-        {/* subtle overlay */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.07) 0%, transparent 50%)', pointerEvents: 'none' }} />
+        <Link href="/shops" aria-label="Back to shops" style={{ position: 'absolute', top: 14, left: 14, width: 34, height: 34, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ChevronLeft size={18} color="#fff" />
+        </Link>
+        <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', gap: 8 }}>
+          <button aria-label="Save shop" onClick={() => setSaved(!saved)} style={{ width: 34, height: 34, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.35)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <Heart size={16} color="#fff" fill={saved ? '#fff' : 'none'} />
+          </button>
+          <Link href="/cart" aria-label="Cart" style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShoppingCart size={16} color="#fff" />
+            {totalItems > 0 && (
+              <span style={{ position: 'absolute', top: -3, right: -3, width: 16, height: 16, borderRadius: '50%', backgroundColor: brandColor, color: '#fff', fontSize: '10px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {totalItems}
+              </span>
+            )}
+          </Link>
+        </div>
+      </div>
 
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1rem', position: 'relative' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1rem' }}>
 
-          {/* Breadcrumb */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'rgba(255,255,255,0.6)', padding: '0.6rem 0 1rem' }}>
-            <Link href="/" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Home</Link>
-            <span>/</span>
-            <Link href="/shops" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Shops</Link>
-            <span>/</span>
-            <span style={{ color: '#fff', fontWeight: '500' }}>{shop.name}</span>
-          </nav>
-
-          {/* Shop info row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-
-            {/* Logo */}
-            <div style={{ width: '56px', height: '56px', minWidth: '56px', borderRadius: '14px', backgroundColor: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+        {/* ── Floating shop plaque, overlapping the banner ── */}
+        <div style={{ marginTop: '-40px', position: 'relative' }}>
+          <div style={{ backgroundColor: colors.white, borderRadius: '18px', padding: '14px 16px', boxShadow: shadow?.md || '0 8px 24px rgba(20,20,43,0.08)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '52px', height: '52px', minWidth: '52px', borderRadius: '14px', backgroundColor: colors.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: `1px solid ${colors.border}` }}>
               {shop.logo
                 ? <img src={shop.logo} alt={shop.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <Store size={26} color="rgba(255,255,255,0.9)" strokeWidth={1.5} />
+                : <Store size={22} color={brandColor} strokeWidth={1.5} />
               }
             </div>
 
-            {/* Name + meta */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.5rem)', fontWeight: '800', color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: 'clamp(1.05rem, 3.5vw, 1.35rem)', fontWeight: '800', color: colors.dark, margin: 0, letterSpacing: '-0.01em' }}>
                   {shop.name}
                 </h1>
                 {shop.badge && (
-                  <span style={{ fontSize: '10px', fontWeight: '700', backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 7px', borderRadius: radius.full, border: '1px solid rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: '10px', fontWeight: '700', backgroundColor: brandColor + '18', color: brandColor, padding: '2px 7px', borderRadius: radius.full, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {shop.badge}
                   </span>
-                )}
-                {totalItems > 0 && (
-                  <Link href="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: '2px 8px', borderRadius: radius.full, fontSize: '11px', fontWeight: '700', textDecoration: 'none' }}>
-                    <ShoppingCart size={11} strokeWidth={2.5} /> {totalItems}
-                  </Link>
                 )}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
                 {shop.rating > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <Star size={11} fill="#FBBF24" color="#FBBF24" />
-                    <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#fff' }}>{shop.rating}</span>
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>({shop.numReviews})</span>
+                    <Star size={11} fill="#F59E0B" color="#F59E0B" />
+                    <span style={{ fontSize: '11.5px', fontWeight: '700', color: colors.dark }}>{shop.rating}</span>
+                    <span style={{ fontSize: '11px', color: colors.muted }}>({shop.numReviews})</span>
                   </div>
                 )}
-                <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.75)' }}>{products.length} products</span>
+                <span style={{ fontSize: '11.5px', color: colors.muted }}>{products.length} products</span>
                 {shop.location && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <MapPin size={11} color="rgba(255,255,255,0.65)" strokeWidth={2} />
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>{shop.location}</span>
+                    <MapPin size={11} color={colors.muted} strokeWidth={2} />
+                    <span style={{ fontSize: '11px', color: colors.muted }}>{shop.location}</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Tabs — sit at bottom of gradient, no gap */}
-          <div className="tab-scroll" style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '0' }}>
+        {/* ── Sticky tabs ── */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: pageTint, paddingTop: '14px' }}>
+          <div className="tab-scroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '10px' }}>
             {productTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 style={{
                   padding: '7px 14px',
-                  borderRadius: `${radius.full} ${radius.full} 0 0`,
+                  borderRadius: radius.full,
                   fontSize: '12px',
                   fontWeight: activeTab === tab ? '700' : '500',
                   fontFamily: font.family,
                   cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: activeTab === tab ? colors.white : 'rgba(255,255,255,0.12)',
-                  color: activeTab === tab ? brandColor : 'rgba(255,255,255,0.8)',
+                  border: activeTab === tab ? 'none' : `1px solid ${colors.border}`,
+                  backgroundColor: activeTab === tab ? brandColor : colors.white,
+                  color: activeTab === tab ? '#fff' : '#5B5B70',
                   transition: transition.base,
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
@@ -168,11 +184,9 @@ export default function ShopPage({ params }) {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ── PRODUCTS — immediately after hero, no gap ── */}
-      <div style={{ backgroundColor: g.from + '12', borderTop: 'none' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '12px 1rem 3rem' }}>
+        {/* ── PRODUCTS ── */}
+        <div style={{ paddingBottom: '3rem' }}>
           {filtered.length > 0 ? (
             <div className="product-grid">
               {filtered.map((product) => (
@@ -201,7 +215,7 @@ export default function ShopPage({ params }) {
 function ShopSkeleton() {
   return (
     <div style={{ fontFamily: font.family }}>
-      <div style={{ height: '160px', background: 'linear-gradient(135deg, #E5E7EB, #D1D5DB)' }} />
+      <div style={{ height: 'clamp(160px, 28vw, 220px)', background: 'linear-gradient(135deg, #E5E7EB, #D1D5DB)' }} />
       <div style={{ backgroundColor: colors.white, padding: '12px 1rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
           {[1,2,3,4].map((i) => (

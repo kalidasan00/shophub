@@ -3,16 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { User, Lock, MapPin, Package, ChevronRight, Check, AlertCircle, Store, ArrowRight } from 'lucide-react'
+import {
+  User, Lock, MapPin, Package, ChevronRight, ChevronLeft, Check, AlertCircle,
+  Store, Wallet, Ticket, Headphones, MoreVertical,
+} from 'lucide-react'
 import useAuthStore from '@/store/useAuthStore'
 import { authAPI } from '@/lib/api'
 import { colors, font, radius, shadow } from '@/lib/styles'
-
-const tabs = [
-  { key: 'profile',   label: 'Profile',   Icon: User   },
-  { key: 'security',  label: 'Security',  Icon: Lock   },
-  { key: 'addresses', label: 'Addresses', Icon: MapPin },
-]
 
 const cardStyle = {
   backgroundColor: colors.white,
@@ -55,10 +52,59 @@ const primaryBtnStyle: React.CSSProperties = {
   cursor: 'pointer',
 }
 
+/* ── Hub-specific styles ── */
+const sectionLabelStyle: React.CSSProperties = {
+  fontSize: '11px',
+  fontWeight: '600',
+  color: colors.muted,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  margin: '0 0 8px 2px',
+}
+
+const rowCardStyle: React.CSSProperties = {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  padding: '15px 16px',
+  backgroundColor: colors.white,
+  border: `1px solid ${colors.border}`,
+  borderRadius: radius.lg,
+  marginBottom: '10px',
+  cursor: 'pointer',
+  textAlign: 'left',
+  textDecoration: 'none',
+  fontFamily: font.family,
+}
+
+type HubRow = { label: string; Icon: any; onClick: () => void }
+
+function RowCard({ label, Icon, onClick }: HubRow) {
+  return (
+    <button onClick={onClick} style={rowCardStyle}>
+      <Icon size={20} color={colors.dark} strokeWidth={1.6} />
+      <span style={{ flex: 1, fontSize: font.base, fontWeight: '500', color: colors.dark }}>{label}</span>
+      <ChevronRight size={17} color={colors.muted} />
+    </button>
+  )
+}
+
+function RowLink({ href, label, Icon }: { href: string; label: string; Icon: any }) {
+  return (
+    <Link href={href} style={rowCardStyle}>
+      <Icon size={20} color={colors.dark} strokeWidth={1.6} />
+      <span style={{ flex: 1, fontSize: font.base, fontWeight: '500', color: colors.dark }}>{label}</span>
+      <ChevronRight size={17} color={colors.muted} />
+    </Link>
+  )
+}
+
 export default function AccountPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
-  const [activeTab, setActiveTab] = useState('profile')
+  const logout = useAuthStore((state: any) => state.logout)
+  const [view, setView] = useState<'hub' | 'profile' | 'security' | 'addresses'>('hub')
 
   useEffect(() => {
     if (!user) router.push('/auth/login?redirect=/account')
@@ -68,69 +114,89 @@ export default function AccountPage() {
 
   const isSeller = user.role === 'shopowner' || user.role === 'admin'
 
+  const handleLogout = () => {
+    if (typeof logout === 'function') logout()
+    router.push('/')
+  }
+
+  const viewTitles: Record<string, string> = {
+    profile: 'Personal information',
+    security: 'Security',
+    addresses: 'Manage addresses',
+  }
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: colors.surface, fontFamily: font.family }}>
 
       {/* Header */}
       <div style={{ backgroundColor: colors.white, borderBottom: `1px solid ${colors.border}` }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(1.5rem, 4vw, 2.5rem) 1.25rem' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(1.25rem, 4vw, 2rem) 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '56px', height: '56px', minWidth: '56px', borderRadius: '50%', backgroundColor: colors.primaryLight, color: colors.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: '700' }}>
-              {user.name?.charAt(0).toUpperCase()}
-            </div>
+            {view !== 'hub' ? (
+              <button onClick={() => setView('hub')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                <ChevronLeft size={22} color={colors.dark} />
+              </button>
+            ) : (
+              <div style={{ width: '48px', height: '48px', minWidth: '48px', borderRadius: '50%', backgroundColor: colors.primaryLight, color: colors.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '19px', fontWeight: '700' }}>
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
+
             <div style={{ minWidth: 0, flex: 1 }}>
-              <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: '700', color: colors.dark, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.name}
-              </h1>
-              <p style={{ fontSize: '13px', color: colors.muted, margin: '2px 0 0' }}>{user.email}</p>
+              {view === 'hub' ? (
+                <>
+                  <h1 style={{ fontSize: '17px', fontWeight: '700', color: colors.dark, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.name}
+                  </h1>
+                  <p style={{ fontSize: '13px', color: colors.muted, margin: '2px 0 0' }}>{user.email}</p>
+                </>
+              ) : (
+                <h1 style={{ fontSize: '17px', fontWeight: '700', color: colors.dark, margin: 0 }}>{viewTitles[view]}</h1>
+              )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: '600', padding: '4px 10px', borderRadius: radius.full, backgroundColor: isSeller ? colors.primaryLight : colors.surface, color: isSeller ? colors.primary : colors.muted, border: `1px solid ${isSeller ? colors.primary + '33' : colors.border}`, flexShrink: 0 }}>
-              {isSeller ? 'Seller' : 'Buyer'}
-            </span>
+
+            {view === 'hub' && (
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }} aria-label="More options">
+                <MoreVertical size={20} color={colors.dark} />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(1rem, 3vw, 2rem) 1.25rem 4rem' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(1.25rem, 3vw, 2rem) 1.25rem 4rem' }}>
 
-        {/* Seller CTA */}
-        <Link href="/seller" style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: isSeller ? colors.white : colors.primary, border: `1px solid ${isSeller ? colors.border : colors.primary}`, borderRadius: radius.xxl, padding: '1rem 1.25rem', marginBottom: '1rem', textDecoration: 'none', boxShadow: shadow.card }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: radius.md, backgroundColor: isSeller ? colors.primaryLight : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Store size={20} color={isSeller ? colors.primary : '#fff'} strokeWidth={1.75} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: font.base, fontWeight: '600', color: isSeller ? colors.dark : '#fff', margin: 0 }}>{isSeller ? 'Seller Dashboard' : 'Become a Seller'}</p>
-            <p style={{ fontSize: '12px', color: isSeller ? colors.muted : 'rgba(255,255,255,0.75)', margin: '1px 0 0' }}>{isSeller ? 'Manage your shop, products and orders' : 'Set up your shop and start selling today'}</p>
-          </div>
-          <ArrowRight size={18} color={isSeller ? colors.muted : '#fff'} strokeWidth={1.75} />
-        </Link>
+        {view === 'hub' && (
+          <>
+            <p style={sectionLabelStyle}>Orders and payments</p>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <RowLink href="/orders" label="Orders" Icon={Package} />
+              <RowLink href="/wallet" label="Wallet" Icon={Wallet} />
+              <RowLink href="/coupons" label="Coupons" Icon={Ticket} />
+            </div>
 
-        {/* Orders link */}
-        <Link href="/orders" style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: radius.xxl, padding: '1rem 1.25rem', marginBottom: '1.25rem', textDecoration: 'none', boxShadow: shadow.card }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: radius.md, backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Package size={20} color={colors.primary} strokeWidth={1.75} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: font.base, fontWeight: '600', color: colors.dark, margin: 0 }}>My Orders</p>
-            <p style={{ fontSize: '12px', color: colors.muted, margin: '1px 0 0' }}>Track and view your order history</p>
-          </div>
-          <ChevronRight size={18} color={colors.muted} />
-        </Link>
+            <p style={sectionLabelStyle}>Account settings</p>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <RowCard label="Personal information" Icon={User} onClick={() => setView('profile')} />
+              <RowCard label="Manage addresses" Icon={MapPin} onClick={() => setView('addresses')} />
+              <RowCard label="Security" Icon={Lock} onClick={() => setView('security')} />
+            </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '1.25rem', overflowX: 'auto' }}>
-          {tabs.map(({ key, label, Icon }) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: radius.full, border: `1px solid ${activeTab === key ? colors.primary : colors.border}`, backgroundColor: activeTab === key ? colors.primary : colors.white, color: activeTab === key ? colors.white : colors.muted, fontSize: '13px', fontWeight: '500', fontFamily: font.family, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s' }}
-            >
-              <Icon size={15} strokeWidth={2} />{label}
+            <p style={sectionLabelStyle}>More</p>
+            <div style={{ marginBottom: '2rem' }}>
+              <RowLink href="/help" label="Help centre" Icon={Headphones} />
+              <RowLink href="/seller" label={isSeller ? 'Seller dashboard' : 'Become a seller'} Icon={Store} />
+            </div>
+
+            <button onClick={handleLogout} style={{ display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: font.family, fontSize: '14px', fontWeight: '600', color: '#EF4444', padding: '12px' }}>
+              Log out
             </button>
-          ))}
-        </div>
+          </>
+        )}
 
-        {activeTab === 'profile'   && <ProfileTab   user={user} />}
-        {activeTab === 'security'  && <SecurityTab  />}
-        {activeTab === 'addresses' && <AddressesTab user={user} />}
+        {view === 'profile'   && <ProfileTab   user={user} />}
+        {view === 'security'  && <SecurityTab  />}
+        {view === 'addresses' && <AddressesTab user={user} />}
       </div>
     </div>
   )
