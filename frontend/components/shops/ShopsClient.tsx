@@ -13,7 +13,13 @@ const sortOptions = [
   { label: 'Name A-Z', value: 'name' },
 ]
 
-export default function ShopsClient(props) {
+export default function ShopsClient(props: {
+  initialShops: any[]
+  initialCategory: string
+  initialSearch: string
+  initialSort: string
+  loadError: boolean
+}) {
   return (
     <Suspense fallback={<ShopsFallback />}>
       <ShopsContent {...props} />
@@ -36,29 +42,26 @@ function ShopsFallback() {
   )
 }
 
-function ShopsContent({ initialShops, initialCategory, initialSearch, initialSort, loadError: initialLoadError }) {
+function ShopsContent({ initialShops, initialCategory, initialSearch, initialSort, loadError: initialLoadError }: {
+  initialShops: any[]
+  initialCategory: string
+  initialSearch: string
+  initialSort: string
+  loadError: boolean
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  // Search stays owned by the navbar — this page just reads whatever it set in the URL.
   const search = searchParams.get('search') || ''
 
-  // Fix: previously always started as [] + loading=true, so every visit
-  // — including the very first one — showed a skeleton before anything
-  // server-fetched could appear. Seeding from server-fetched props means
-  // real content is visible immediately on first render.
   const [shops, setShops] = useState(initialShops)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState(initialLoadError)
   const [activeCategory, setActiveCategory] = useState(initialCategory)
   const [sortBy, setSortBy] = useState(initialSort)
 
-  // Skip the first client-side fetch — the server already fetched data
-  // matching the initial category/search/sort. Only re-fetch once the
-  // user actually changes a filter after that.
   const isFirstRun = useRef(true)
 
-  // Mobile filter sheet — draft values so edits only apply on "Apply"
   const [sheetOpen, setSheetOpen] = useState(false)
   const [draftCategory, setDraftCategory] = useState(activeCategory)
   const [draftSort, setDraftSort] = useState(sortBy)
@@ -168,7 +171,7 @@ function ShopsContent({ initialShops, initialCategory, initialSearch, initialSor
           </div>
         )}
 
-        {/* Desktop filters row (sm and up) */}
+        {/* Desktop filters row */}
         <div className="filters-desktop" style={{ flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '2px' }}>
             {categories.map((cat) => (
@@ -186,7 +189,7 @@ function ShopsContent({ initialShops, initialCategory, initialSearch, initialSor
           </select>
         </div>
 
-        {/* Mobile filter trigger (below sm) */}
+        {/* Mobile filter trigger */}
         <div className="filters-mobile-trigger" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', flex: 1 }}>
             {categories.slice(0, 5).map((cat) => (
