@@ -1,17 +1,19 @@
 import axios from 'axios'
 
+// Fix: the token is no longer read from localStorage or sent as a
+// manual Authorization header. The backend now sets it as an httpOnly
+// cookie on login, so `withCredentials: true` makes the browser attach
+// it automatically on every request — JavaScript never touches the
+// token directly, closing the XSS-can-steal-the-session-from-localStorage
+// hole. `user` (name/role/avatar for UI display only, not the token
+// itself) is still cached in localStorage below purely for fast client
+// re-renders; it carries no authorization weight since every real
+// request is still verified server-side via the cookie.
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   headers: { 'Content-Type': 'application/json' },
   timeout: 60000,
-})
-
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token')
-    if (token) config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  withCredentials: true,
 })
 
 api.interceptors.response.use(
@@ -19,8 +21,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token')
         localStorage.removeItem('user')
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?session=expired'
+        }
       }
     }
     return Promise.reject(error)
@@ -30,6 +34,9 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  // New: httpOnly cookies can't be cleared by client-side JS, so logout
+  // now has to be a real request that lets the server expire the cookie.
+  logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/update', data),
   updatePassword: (data) => api.put('/auth/password', data),

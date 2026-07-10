@@ -5,19 +5,44 @@ import Link from 'next/link'
 import Badge from './Badge'
 import StarRating from './StarRating'
 import { colors, radius, shadow, transition, font } from '@/lib/styles'
+import useCartStore from '@/store/useCartStore'
 
 export default function ProductCard({ product, onAddToCart }) {
   const [hovered, setHovered] = useState(false)
-  const [qty, setQty] = useState(0)
   const [imgError, setImgError] = useState(false)
 
   const productId = product._id || product.id
-  const mainImage = product.images?.[0]
 
-  const handleAdd = (e) => {
+  // Fix: qty used to be local state starting at 0 every render, which
+  // could drift from the actual cart contents (e.g. clicking "-" only
+  // updated this card's number, never the cart store — customer could
+  // see "1" here while the cart/checkout still had 3). Deriving it
+  // directly from the store keeps the displayed number always correct,
+  // including on first render if the item was already in the cart.
+  const cartItem = useCartStore((state) =>
+    state.items.find((i) => i.id === productId && !i.selectedSize && !i.selectedColor)
+  )
+  const removeItem = useCartStore((state) => state.removeItem)
+  const updateQuantity = useCartStore((state) => state.updateQuantity)
+  const qty = cartItem?.quantity ?? 0
+
+  // Defensive: images may be an array of URL strings, or an array of
+  // objects like { url, public_id } depending on how the backend stores them.
+  const rawImage = product.images?.[0]
+  const mainImage = typeof rawImage === 'string' ? rawImage : rawImage?.url
+
+  const handleIncrement = (e) => {
     e.preventDefault()
-    setQty(q => q + 1)
     onAddToCart?.(product)
+  }
+
+  const handleDecrement = (e) => {
+    e.preventDefault()
+    if (qty <= 1) {
+      removeItem(productId, undefined, undefined)
+    } else {
+      updateQuantity(productId, undefined, undefined, qty - 1)
+    }
   }
 
   const discount = product.originalPrice
@@ -53,6 +78,7 @@ export default function ProductCard({ product, onAddToCart }) {
             <img
               src={mainImage}
               alt={product.name}
+              loading="lazy"
               onError={() => setImgError(true)}
               style={{
                 width: '100%',
@@ -140,7 +166,7 @@ export default function ProductCard({ product, onAddToCart }) {
 
           <div style={{ width: '52px', minWidth: '52px', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
             {qty === 0 ? (
-              <button onClick={handleAdd} aria-label="Add to cart" style={{
+              <button onClick={handleIncrement} aria-label="Add to cart" style={{
                 backgroundColor: colors.primary, color: '#fff', border: 'none',
                 borderRadius: '50%', width: '20px', height: '20px', minWidth: '20px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -153,7 +179,7 @@ export default function ProductCard({ product, onAddToCart }) {
                 backgroundColor: '#F0FDF4', border: '1px solid #22C55E',
                 borderRadius: '999px', padding: '1px 3px', flexShrink: 0,
               }}>
-                <button onClick={(e) => { e.preventDefault(); setQty(q => q - 1) }} style={{
+                <button onClick={handleDecrement} aria-label="Decrease quantity" style={{
                   backgroundColor: 'transparent', color: '#22C55E', border: 'none',
                   width: '14px', height: '14px', borderRadius: '50%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -162,7 +188,7 @@ export default function ProductCard({ product, onAddToCart }) {
                 <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#16A34A', minWidth: '9px', textAlign: 'center', fontFamily: font.family }}>
                   {qty}
                 </span>
-                <button onClick={handleAdd} style={{
+                <button onClick={handleIncrement} aria-label="Increase quantity" style={{
                   backgroundColor: '#22C55E', color: '#fff', border: 'none',
                   width: '14px', height: '14px', borderRadius: '50%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',

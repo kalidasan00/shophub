@@ -30,8 +30,11 @@ export default function Footer() {
   ]
 
   return (
-    <footer style={{ background: 'white', borderTop: '1px solid #E5E7EB', marginTop: '5rem', fontFamily: 'Inter, sans-serif' }}>
+    <footer className="ftr-root" style={{ background: 'white', borderTop: '1px solid #E5E7EB', marginTop: '5rem', fontFamily: 'Inter, sans-serif' }}>
       <style>{`
+        .ftr-root { display: none; }
+        @media (min-width: 640px) { .ftr-root { display: block; } }
+
         .ftr * { box-sizing: border-box; }
         .ftr-wrap {
           padding-left: 1.25rem; padding-right: 1.25rem; margin: 0 auto;

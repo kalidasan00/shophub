@@ -5,6 +5,7 @@ import { Package, Pencil, Trash2, Plus, X } from 'lucide-react'
 import { productsAPI } from '@/lib/api'
 import { colors, font, radius } from '@/lib/styles'
 import { categories, productTags, inputStyle, iconBtnStyle, Field, ErrorBox, SkeletonBox } from './shared'
+import ImageUploader from '@/components/ui/ImageUploader'
 
 export default function ProductsTab({ shopId }) {
   const [products,       setProducts]       = useState([])
@@ -114,6 +115,7 @@ function ProductForm({ shopId, existingProduct, onClose, onSaved }) {
     category:      existingProduct?.category      || categories[0],
     stock:         existingProduct?.stock         ?? '',
     tag:           existingProduct?.tag           || 'New',
+    images:        existingProduct?.images        || [],
   })
   const [submitting, setSubmitting] = useState(false)
   const [error,      setError]      = useState(null)
@@ -152,6 +154,14 @@ function ProductForm({ shopId, existingProduct, onClose, onSaved }) {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <Field label="Product photos">
+          <ImageUploader
+            images={form.images}
+            maxImages={5}
+            onChange={(urls) => setForm({ ...form, images: urls })}
+          />
+        </Field>
+
         <Field label="Product name"><input type="text" name="name" value={form.name} onChange={handleChange} placeholder="e.g. Classic White Tee" style={inputStyle} /></Field>
         <Field label="Description"><textarea name="description" value={form.description} onChange={handleChange} rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: font.family }} /></Field>
 

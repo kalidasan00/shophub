@@ -34,6 +34,7 @@ export default function ShopCard({ shop }) {
           <img
             src={shop.logo}
             alt={shop.name}
+            loading="lazy"
             onError={() => setImgError(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: transition.slow, transform: hovered ? 'scale(1.05)' : 'scale(1)' }}
           />
