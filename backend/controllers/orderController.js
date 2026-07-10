@@ -1,60 +1,117 @@
+const mongoose = require('mongoose')
 const Order = require('../models/Order')
 const Product = require('../models/Product')
 const Shop = require('../models/Shop')
 
+// Fix: previously nothing in this file was wrapped in try/catch, so any
+// thrown error (bad ObjectId, DB hiccup, etc.) became an unhandled
+// rejection — depending on Express setup that's either a raw stack trace
+// leaking to the client, or a full process crash taking down the API for
+// every user. Wrapping every controller means one bad request just
+// returns a clean error instead of taking the site down.
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next)
+
 // @route   POST /api/orders
-exports.createOrder = async (req, res) => {
+exports.createOrder = asyncHandler(async (req, res) => {
   const { items, shippingAddress, paymentMethod, couponCode } = req.body
 
   if (!items || items.length === 0) {
     return res.status(400).json({ success: false, message: 'No items in order' })
   }
 
-  // Calculate prices
-  let subtotal = 0
-  for (const item of items) {
-    const product = await Product.findById(item.product)
-    if (!product) {
-      return res.status(404).json({ success: false, message: `Product ${item.product} not found` })
+  // Fix: the whole operation now runs in a transaction. Previously, if
+  // item 3 of 5 failed the stock check, items 1-2 had already had their
+  // stock decremented and saved with no order ever created — inventory
+  // silently vanished with nothing to show for it. A transaction makes
+  // this all-or-nothing: any failure rolls back every change made so far.
+  const session = await mongoose.startSession()
+  try {
+    session.startTransaction()
+
+    let subtotal = 0
+    const verifiedItems = []
+
+    for (const item of items) {
+      const product = await Product.findById(item.product).session(session)
+      if (!product) {
+        throw Object.assign(new Error(`Product ${item.product} not found`), { status: 404 })
+      }
+
+      // Fix: previously read stock, checked it, then wrote the decrement
+      // in a separate save() — two requests for the last unit could both
+      // pass the check before either write landed, overselling stock.
+      // findOneAndUpdate with the stock check baked into the filter makes
+      // the check-and-decrement a single atomic DB operation.
+      const updatedProduct = await Product.findOneAndUpdate(
+        { _id: item.product, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true, session }
+      )
+      if (!updatedProduct) {
+        throw Object.assign(new Error(`${product.name} is out of stock`), { status: 400 })
+      }
+
+      subtotal += product.price * item.quantity
+
+      // Fix: previously saved the client-submitted `items` array as-is,
+      // including whatever `price` the frontend sent. The order *total*
+      // was computed from the real DB price, but each line item's stored
+      // price was still attacker-controlled — and vendor payouts /
+      // analytics are calculated from item.price downstream, so a
+      // tampered cart could corrupt vendor revenue, not just the display.
+      verifiedItems.push({
+        product: product._id,
+        name: product.name,
+        price: product.price, // always from DB, never from req.body
+        quantity: item.quantity,
+        selectedSize: item.selectedSize,
+        selectedColor: item.selectedColor,
+      })
     }
-    if (product.stock < item.quantity) {
-      return res.status(400).json({ success: false, message: `${product.name} is out of stock` })
-    }
-    subtotal += product.price * item.quantity
-    product.stock -= item.quantity
-    await product.save()
+
+    const discount = couponCode === 'SAVE10' ? subtotal * 0.1 : 0
+    const shippingCost = subtotal > 50 ? 0 : 9.99
+    const total = subtotal - discount + shippingCost
+
+    const [order] = await Order.create(
+      [
+        {
+          user: req.user.id,
+          items: verifiedItems,
+          shippingAddress,
+          paymentMethod,
+          subtotal,
+          discount,
+          shippingCost,
+          total,
+          couponCode: couponCode || '',
+        },
+      ],
+      { session }
+    )
+
+    await session.commitTransaction()
+    res.status(201).json({ success: true, order })
+  } catch (err) {
+    await session.abortTransaction()
+    const status = err.status || 500
+    res.status(status).json({ success: false, message: err.message || 'Failed to create order' })
+  } finally {
+    session.endSession()
   }
-
-  const discount = couponCode === 'SAVE10' ? subtotal * 0.1 : 0
-  const shippingCost = subtotal > 50 ? 0 : 9.99
-  const total = subtotal - discount + shippingCost
-
-  const order = await Order.create({
-    user: req.user.id,
-    items,
-    shippingAddress,
-    paymentMethod,
-    subtotal,
-    discount,
-    shippingCost,
-    total,
-    couponCode: couponCode || '',
-  })
-
-  res.status(201).json({ success: true, order })
-}
+})
 
 // @route   GET /api/orders/my
-exports.getMyOrders = async (req, res) => {
+exports.getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user.id })
     .populate('items.product', 'name icon price')
     .sort({ createdAt: -1 })
 
   res.status(200).json({ success: true, orders })
-}
+})
 
 // @route   GET /api/orders/:id
-exports.getOrder = async (req, res) => {
+exports.getOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate('user', 'name email')
     .populate('items.product', 'name icon price')
@@ -68,10 +125,10 @@ exports.getOrder = async (req, res) => {
   }
 
   res.status(200).json({ success: true, order })
-}
+})
 
 // @route   PUT /api/orders/:id/status
-exports.updateOrderStatus = async (req, res) => {
+exports.updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderStatus } = req.body
   const order = await Order.findById(req.params.id)
 
@@ -87,16 +144,16 @@ exports.updateOrderStatus = async (req, res) => {
 
   await order.save()
   res.status(200).json({ success: true, order })
-}
+})
 
 // @route   GET /api/orders (admin)
-exports.getAllOrders = async (req, res) => {
+exports.getAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find()
     .populate('user', 'name email')
     .sort({ createdAt: -1 })
 
   res.status(200).json({ success: true, orders })
-}
+})
 
 /* ─────────────────────────────────────────────────────────
    SELLER-SCOPED ENDPOINTS
@@ -113,10 +170,7 @@ async function verifyShopOwnership(shopId, userId, userRole) {
 }
 
 // @route   GET /api/orders/shop/:shopId
-// Returns all orders that contain at least one product from this shop.
-// Each order is annotated with shopItems (only the items belonging to this shop)
-// and shopSubtotal (revenue from just this shop's items in that order).
-exports.getShopOrders = async (req, res) => {
+exports.getShopOrders = asyncHandler(async (req, res) => {
   const { shopId } = req.params
 
   const ownership = await verifyShopOwnership(shopId, req.user.id, req.user.role)
@@ -124,7 +178,6 @@ exports.getShopOrders = async (req, res) => {
     return res.status(ownership.status).json({ success: false, message: ownership.error })
   }
 
-  // Find all product IDs belonging to this shop
   const shopProducts = await Product.find({ shop: shopId }).select('_id')
   const shopProductIds = shopProducts.map((p) => p._id.toString())
 
@@ -159,12 +212,10 @@ exports.getShopOrders = async (req, res) => {
   })
 
   res.status(200).json({ success: true, orders: annotated })
-}
+})
 
 // @route   PUT /api/orders/:id/shop-status
-// Allows a shop owner to update the order status, but only if the order
-// actually contains one of their products. Admins can always update.
-exports.updateShopOrderStatus = async (req, res) => {
+exports.updateShopOrderStatus = asyncHandler(async (req, res) => {
   const { orderStatus, shopId } = req.body
   const order = await Order.findById(req.params.id).populate('items.product', 'shop')
 
@@ -194,12 +245,10 @@ exports.updateShopOrderStatus = async (req, res) => {
 
   await order.save()
   res.status(200).json({ success: true, order })
-}
+})
 
 // @route   GET /api/orders/shop/:shopId/analytics
-// Returns: total revenue, total orders, total products, low-stock count,
-// top-selling products, and revenue grouped by day (last 30 days).
-exports.getShopAnalytics = async (req, res) => {
+exports.getShopAnalytics = asyncHandler(async (req, res) => {
   const { shopId } = req.params
 
   const ownership = await verifyShopOwnership(shopId, req.user.id, req.user.role)
@@ -232,8 +281,8 @@ exports.getShopAnalytics = async (req, res) => {
     .populate('items.product', 'name icon shop')
 
   let totalRevenue = 0
-  const productSales = {} // productId -> { name, icon, unitsSold, revenue }
-  const revenueByDayMap = {} // 'YYYY-MM-DD' -> revenue
+  const productSales = {}
+  const revenueByDayMap = {}
 
   for (const order of orders) {
     const shopItems = order.items.filter(
@@ -263,7 +312,6 @@ exports.getShopAnalytics = async (req, res) => {
     .sort((a, b) => b.unitsSold - a.unitsSold)
     .slice(0, 5)
 
-  // Build last 30 days, filling zeros for days with no sales
   const revenueByDay = []
   const today = new Date()
   for (let i = 29; i >= 0; i--) {
@@ -285,4 +333,4 @@ exports.getShopAnalytics = async (req, res) => {
       revenueByDay,
     },
   })
-}
+})
