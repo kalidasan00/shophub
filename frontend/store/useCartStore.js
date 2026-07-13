@@ -13,16 +13,16 @@ const useCartStore = create(
     (set, get) => ({
       items: [],
 
-      addItem: (product) => {
+      addItem: (product, qty = 1) => {
         const existing = get().items.find((i) => variantKey(i) === variantKey(product))
         if (existing) {
           set({
             items: get().items.map((i) =>
-              variantKey(i) === variantKey(product) ? { ...i, quantity: i.quantity + 1 } : i
+              variantKey(i) === variantKey(product) ? { ...i, quantity: i.quantity + qty } : i
             ),
           })
         } else {
-          set({ items: [...get().items, { ...product, quantity: 1 }] })
+          set({ items: [...get().items, { ...product, quantity: qty }] })
         }
       },
 

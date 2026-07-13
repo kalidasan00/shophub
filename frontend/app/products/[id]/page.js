@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { use } from 'react'
 import { productsAPI } from '@/lib/api'
+import useCartStore from '@/store/useCartStore'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
 function Stars({ rating, size = 14 }) {
@@ -26,8 +27,21 @@ function Pill({ label, color = colors.primary, bg = colors.primaryLight }) {
   )
 }
 
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days < 1) return 'Today'
+  if (days === 1) return '1 day ago'
+  if (days < 7) return `${days} days ago`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 5) return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+  const months = Math.floor(days / 30)
+  return `${months} month${months > 1 ? 's' : ''} ago`
+}
+
 export default function ProductPage({ params }) {
   const { id } = use(params)
+  const addItem = useCartStore((state) => state.addItem)
 
   const [product, setProduct] = useState(null)
   const [relatedProducts, setRelatedProducts] = useState([])
@@ -42,21 +56,23 @@ export default function ProductPage({ params }) {
   const [activeThumb, setActiveThumb] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
     const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
         const res = await productsAPI.getOne(id)
+        if (cancelled) return
         const p = res.data.product
         setProduct(p)
         setSelectedSize(p.sizes?.[0] || null)
         setSelectedColor(p.colors?.[0] || null)
 
-        // Fetch related products from same shop
         const shopId = p.shop?._id || p.shopId
         if (shopId) {
           try {
             const relRes = await productsAPI.getByShop(shopId)
+            if (cancelled) return
             setRelatedProducts(
               (relRes.data.products || [])
                 .filter((r) => String(r._id) !== String(id))
@@ -65,21 +81,42 @@ export default function ProductPage({ params }) {
           } catch (_) {}
         }
       } catch (err) {
-        setError('Product not found')
+        if (!cancelled) setError('Product not found')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchData()
+    return () => { cancelled = true }
   }, [id])
 
   const discount = product?.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : null
 
+  // Fix: this used to only flash a "✓ Added!" animation without ever
+  // touching the cart — customers who clicked it walked away with an
+  // empty cart, no error, no indication anything was wrong. Now it
+  // actually adds the product (with the selected size/color/quantity)
+  // to the real cart store.
   const handleAddToCart = () => {
+    addItem(
+      { ...product, id: product._id, selectedSize, selectedColor },
+      quantity
+    )
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
+  }
+
+  // Fix: previously had no onClick at all — a completely dead button.
+  // Adds to cart the same way, then sends the customer straight to
+  // checkout instead of leaving them to find the cart themselves.
+  const handleBuyNow = () => {
+    addItem(
+      { ...product, id: product._id, selectedSize, selectedColor },
+      quantity
+    )
+    window.location.href = '/checkout'
   }
 
   // Loading skeleton
@@ -120,12 +157,17 @@ export default function ProductPage({ params }) {
         .pd-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
         @media (min-width: 768px) { .pd-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } }
 
-        /* Media column — edge-to-edge on mobile, boxed with thumbnails on desktop */
         .pd-media-col { padding: 0; border-right: none; }
         @media (min-width: 768px) { .pd-media-col { padding: 16px; border-right: 1px solid ${colors.border}; } }
 
-        .pd-main-image { aspect-ratio: 1 / 1; border-radius: 0; }
-        @media (min-width: 768px) { .pd-main-image { aspect-ratio: 4 / 5; border-radius: 12px; } }
+        /* Fix: this was a full 1:1 square at 100% viewport width, which
+           on a typical phone (e.g. 390px wide) meant a ~390px-tall image
+           before any product info was visible at all — a lot of empty
+           scroll before the "important" content. Capping the height
+           keeps it visually prominent without dominating the whole
+           first screen. */
+        .pd-main-image { aspect-ratio: 1 / 1; border-radius: 0; max-height: 62vh; }
+        @media (min-width: 768px) { .pd-main-image { aspect-ratio: 4 / 5; border-radius: 12px; max-height: none; } }
 
         .pd-dots { display: flex; justify-content: center; align-items: center; gap: 5px; padding: 8px 0 2px; }
         @media (min-width: 768px) { .pd-dots { display: none; } }
@@ -135,14 +177,14 @@ export default function ProductPage({ params }) {
         .pd-thumbs { display: none; }
         @media (min-width: 768px) { .pd-thumbs { display: flex; gap: 6px; margin-top: 10px; padding: 0 0; } }
 
-        /* Info column — tighter on mobile */
-        .pd-info-col { padding: 12px 14px 14px; gap: 10px; }
+        /* Fix: tightened mobile padding/gap slightly — the info block
+           felt loose relative to how little vertical space a phone has. */
+        .pd-info-col { padding: 10px 14px 12px; gap: 8px; }
         @media (min-width: 768px) { .pd-info-col { padding: 16px; gap: 14px; } }
 
-        /* CTA — inline row on desktop, sticky bar on mobile */
         .pd-cta-inline { display: none; }
         @media (min-width: 768px) { .pd-cta-inline { display: flex; } }
-        .pd-cta-sticky { position: fixed; bottom: 64px; left: 0; right: 0; z-index: 20; background: ${colors.white}; border-top: 1px solid ${colors.border}; box-shadow: ${shadow.card}; padding: 10px 14px; display: flex; }
+        .pd-cta-sticky { position: fixed; bottom: 64px; left: 0; right: 0; z-index: 20; background: ${colors.white}; border-top: 1px solid ${colors.border}; box-shadow: ${shadow.card}; padding: 8px 14px; display: flex; }
         @media (min-width: 768px) { .pd-cta-sticky { display: none; } }
 
         .related-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -172,8 +214,6 @@ export default function ProductPage({ params }) {
 
           {/* Left — Image */}
           <div className="pd-media-col">
-
-            {/* Main image — edge-to-edge on mobile */}
             <div className="pd-main-image" style={{
               backgroundColor: '#F5F5F5',
               display: 'flex',
@@ -189,7 +229,6 @@ export default function ProductPage({ params }) {
               )}
             </div>
 
-            {/* Dots — mobile only */}
             {product.images?.length > 1 && (
               <div className="pd-dots">
                 {product.images.map((_, i) => (
@@ -203,7 +242,6 @@ export default function ProductPage({ params }) {
               </div>
             )}
 
-            {/* Thumbnails — desktop only */}
             {product.images?.length > 0 && (
               <div className="pd-thumbs">
                 {product.images.slice(0, 3).map((img, i) => (
@@ -234,26 +272,25 @@ export default function ProductPage({ params }) {
           {/* Right — Info */}
           <div className="pd-info-col" style={{ display: 'flex', flexDirection: 'column' }}>
 
-            {/* Pills row */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {product.tag && <Pill label={product.tag} />}
               <Pill label={product.category} color={colors.muted} bg={colors.surface} />
               {discount && <Pill label={`-${discount}%`} color="#B91C1C" bg="#FEF2F2" />}
             </div>
 
-            {/* Name */}
             <h1 style={{ margin: 0, fontSize: 'clamp(1rem, 3vw, 1.5rem)', fontWeight: '800', color: colors.dark, lineHeight: '1.2', letterSpacing: '-0.02em' }}>
               {product.name}
             </h1>
 
-            {/* Rating row */}
+            {/* Fix: was `product.reviews`, a field that doesn't exist on
+                the product object (backend calls it numReviews) — this
+                always rendered "(undefined reviews)". */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Stars rating={product.rating} />
               <span style={{ fontSize: '12.5px', fontWeight: '600', color: colors.dark }}>{product.rating}</span>
-              <span style={{ fontSize: '11.5px', color: colors.muted }}>({product.reviews} reviews)</span>
+              <span style={{ fontSize: '11.5px', color: colors.muted }}>({product.numReviews || 0} reviews)</span>
             </div>
 
-            {/* Price */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
               <span style={{ fontSize: 'clamp(1.25rem, 4vw, 1.8rem)', fontWeight: '800', color: colors.dark }}>₹{Math.round(product.price)}</span>
               {product.originalPrice && (
@@ -261,11 +298,11 @@ export default function ProductPage({ params }) {
               )}
             </div>
 
-            {/* Divider */}
             <div style={{ height: '1px', backgroundColor: colors.border }} />
 
-            {/* Color selector */}
-            {product.colors.length > 0 && (
+            {/* Fix: product.colors.length would throw if colors was ever
+                missing from the API response; now safely optional. */}
+            {product.colors?.length > 0 && (
               <div>
                 <p style={{ margin: '0 0 7px', fontSize: '11px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Color — <span style={{ color: colors.primary, textTransform: 'none', letterSpacing: 0 }}>{selectedColor}</span>
@@ -296,8 +333,7 @@ export default function ProductPage({ params }) {
               </div>
             )}
 
-            {/* Size selector */}
-            {product.sizes.length > 0 && (
+            {product.sizes?.length > 0 && (
               <div>
                 <p style={{ margin: '0 0 7px', fontSize: '11px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Size — <span style={{ color: colors.primary, textTransform: 'none', letterSpacing: 0 }}>{selectedSize}</span>
@@ -330,7 +366,6 @@ export default function ProductPage({ params }) {
               </div>
             )}
 
-            {/* Quantity */}
             <div>
               <p style={{ margin: '0 0 7px', fontSize: '11px', fontWeight: '600', color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantity</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -349,22 +384,24 @@ export default function ProductPage({ params }) {
               </div>
             </div>
 
-            {/* CTA buttons — inline on desktop only, mobile uses the sticky bar below */}
             <div className="pd-cta-inline" style={{ gap: '8px', marginTop: '2px' }}>
               <button
                 onClick={handleAddToCart}
+                disabled={product.stock === 0}
                 style={{
                   flex: 1, padding: '11px 0', borderRadius: radius.md, fontSize: '13px', fontWeight: '700',
-                  fontFamily: font.family, border: 'none', cursor: 'pointer', transition: transition.base,
-                  backgroundColor: added ? '#22C55E' : colors.primary, color: '#fff', letterSpacing: '0.01em',
+                  fontFamily: font.family, border: 'none', cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: transition.base,
+                  backgroundColor: added ? '#22C55E' : (product.stock === 0 ? colors.muted : colors.primary), color: '#fff', letterSpacing: '0.01em',
                 }}
               >
-                {added ? '✓ Added!' : 'Add to cart'}
+                {added ? '✓ Added!' : product.stock === 0 ? 'Out of stock' : 'Add to cart'}
               </button>
               <button
+                onClick={handleBuyNow}
+                disabled={product.stock === 0}
                 style={{
                   flex: 1, padding: '11px 0', borderRadius: radius.md, fontSize: '13px', fontWeight: '700',
-                  fontFamily: font.family, border: `1.5px solid ${colors.border}`, cursor: 'pointer', transition: transition.base,
+                  fontFamily: font.family, border: `1.5px solid ${colors.border}`, cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: transition.base,
                   backgroundColor: colors.white, color: colors.dark, letterSpacing: '0.01em',
                 }}
               >
@@ -372,7 +409,6 @@ export default function ProductPage({ params }) {
               </button>
             </div>
 
-            {/* Shop link */}
             <Link
               href={`/shops/${product.shop?._id || product.shopId}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: colors.muted, textDecoration: 'none' }}
@@ -388,7 +424,6 @@ export default function ProductPage({ params }) {
         {/* Tabs section */}
         <div style={{ backgroundColor: colors.white, borderRadius: '16px', border: `1px solid ${colors.border}`, overflow: 'hidden', marginBottom: '10px', boxShadow: shadow.card }}>
 
-          {/* Tab bar */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${colors.border}` }}>
             {['description', 'reviews', 'shipping'].map((tab) => (
               <button
@@ -406,12 +441,11 @@ export default function ProductPage({ params }) {
                   textTransform: 'capitalize',
                 }}
               >
-                {tab}
+                {tab === 'reviews' ? `Reviews (${product.numReviews || 0})` : tab}
               </button>
             ))}
           </div>
 
-          {/* Tab content */}
           <div style={{ padding: '14px' }}>
 
             {activeTab === 'description' && (
@@ -430,27 +464,35 @@ export default function ProductPage({ params }) {
               </div>
             )}
 
+            {/* Fix: this tab used to show three hardcoded fake reviews
+                ("Sarah M.", "James K.", "Priya S.") on every single
+                product, regardless of what real reviews existed —
+                fabricated social proof shown to every customer. Now
+                renders the product's actual reviews array (already
+                populated with reviewer names via the backend). */}
             {activeTab === 'reviews' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '600px' }}>
-                {[
-                  { name: 'Sarah M.', rating: 5, comment: 'Absolutely love this! Great quality and fast delivery.', date: '2 days ago' },
-                  { name: 'James K.', rating: 4, comment: 'Really good quality. Fits perfectly and looks great.', date: '1 week ago' },
-                  { name: 'Priya S.', rating: 5, comment: 'Exceeded my expectations. Will definitely buy again!', date: '2 weeks ago' },
-                ].map((review) => (
-                  <div key={review.name} style={{ backgroundColor: colors.surface, borderRadius: '10px', padding: '10px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: colors.primary }}>
-                          {review.name[0]}
+                {product.reviews?.length > 0 ? (
+                  product.reviews.map((review) => (
+                    <div key={review._id} style={{ backgroundColor: colors.surface, borderRadius: '10px', padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: colors.primary }}>
+                            {review.name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <span style={{ fontSize: '12.5px', fontWeight: '600', color: colors.dark }}>{review.name}</span>
                         </div>
-                        <span style={{ fontSize: '12.5px', fontWeight: '600', color: colors.dark }}>{review.name}</span>
+                        <span style={{ fontSize: '11px', color: colors.muted }}>{timeAgo(review.createdAt)}</span>
                       </div>
-                      <span style={{ fontSize: '11px', color: colors.muted }}>{review.date}</span>
+                      <Stars rating={review.rating} size={12} />
+                      <p style={{ margin: '5px 0 0', fontSize: '12px', color: colors.muted, lineHeight: '1.5' }}>{review.comment}</p>
                     </div>
-                    <Stars rating={review.rating} size={12} />
-                    <p style={{ margin: '5px 0 0', fontSize: '12px', color: colors.muted, lineHeight: '1.5' }}>{review.comment}</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p style={{ fontSize: '12.5px', color: colors.muted, textAlign: 'center', padding: '1.5rem 0' }}>
+                    No reviews yet. Be the first to review this product!
+                  </p>
+                )}
               </div>
             )}
 
@@ -515,14 +557,15 @@ export default function ProductPage({ params }) {
 
       </div>
 
-      {/* Sticky Add to Cart / Buy Now — mobile only, sits above the global bottom tab nav */}
+      {/* Sticky Add to Cart / Buy Now — mobile only */}
       <div className="pd-cta-sticky">
         <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', display: 'flex', gap: '8px' }}>
           <button
             onClick={handleAddToCart}
+            disabled={product.stock === 0}
             style={{
               flex: 1, padding: '12px 0', borderRadius: radius.md, fontSize: '13.5px', fontWeight: '700',
-              fontFamily: font.family, border: `1.5px solid ${colors.primary}`, cursor: 'pointer', transition: transition.base,
+              fontFamily: font.family, border: `1.5px solid ${colors.primary}`, cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: transition.base,
               backgroundColor: added ? '#22C55E' : colors.white, color: added ? '#fff' : colors.primary, letterSpacing: '0.01em',
               borderColor: added ? '#22C55E' : colors.primary,
             }}
@@ -530,9 +573,11 @@ export default function ProductPage({ params }) {
             {added ? '✓ Added!' : 'Add to cart'}
           </button>
           <button
+            onClick={handleBuyNow}
+            disabled={product.stock === 0}
             style={{
               flex: 1, padding: '12px 0', borderRadius: radius.md, fontSize: '13.5px', fontWeight: '700',
-              fontFamily: font.family, border: 'none', cursor: 'pointer', transition: transition.base,
+              fontFamily: font.family, border: 'none', cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: transition.base,
               backgroundColor: colors.primary, color: '#fff', letterSpacing: '0.01em',
             }}
           >

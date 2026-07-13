@@ -19,11 +19,20 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Fix: checkAuth() (called on every page load, logged in or not, to
+    // ask "is there a valid session?") was hitting this same 401 handler
+    // as a real expired-session error — meaning every anonymous visitor
+    // browsing the site logged out got forcibly redirected to /auth/login
+    // on every page load, just for not being logged in. That call is now
+    // tagged with skipAuthRedirect (see authAPI.getMe below) so a routine
+    // "not logged in" check no longer triggers this redirect — only a
+    // 401 on an actual authenticated action (e.g. session expiring
+    // mid-use while updating a profile) does.
+    if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('user')
-        if (!window.location.pathname.startsWith('/login')) {
-          window.location.href = '/login?session=expired'
+        if (!window.location.pathname.startsWith('/auth/login')) {
+          window.location.href = '/auth/login?session=expired'
         }
       }
     }
@@ -37,7 +46,7 @@ export const authAPI = {
   // New: httpOnly cookies can't be cleared by client-side JS, so logout
   // now has to be a real request that lets the server expire the cookie.
   logout: () => api.post('/auth/logout'),
-  getMe: () => api.get('/auth/me'),
+  getMe: () => api.get('/auth/me', { skipAuthRedirect: true }),
   updateProfile: (data) => api.put('/auth/update', data),
   updatePassword: (data) => api.put('/auth/password', data),
 }
@@ -45,6 +54,10 @@ export const authAPI = {
 export const shopsAPI = {
   getAll: (params) => api.get('/shops', { params }),
   getOne: (id) => api.get(`/shops/${id}`),
+  // New: returns ALL shops owned by the logged-in user (active or not,
+  // unpaginated) — used for the seller dashboard's shop switcher, since
+  // getAll({ owner }) only returns active shops and paginates at 12.
+  getMine: () => api.get('/shops/mine'),
   create: (data) => api.post('/shops', data),
   update: (id, data) => api.put(`/shops/${id}`, data),
   delete: (id) => api.delete(`/shops/${id}`),
@@ -53,7 +66,7 @@ export const shopsAPI = {
 
 export const productsAPI = {
   getAll: (params) => api.get('/products', { params }),
-  getByShop: (shopId) => api.get('/products', { params: { shop: shopId } }),
+  getByShop: (shopId, params = {}) => api.get('/products', { params: { shop: shopId, limit: 100, ...params } }),
   getOne: (id) => api.get(`/products/${id}`),
   create: (data) => api.post('/products', data),
   update: (id, data) => api.put(`/products/${id}`, data),

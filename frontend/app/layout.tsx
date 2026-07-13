@@ -2,6 +2,8 @@ import './globals.css'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import BottomNavBar from '@/components/BottomNavBar'
+import CartHydrator from '@/components/CartHydrator'
+import AuthInitializer from '@/components/AuthInitializer'
 
 export const metadata = {
   title: 'ShopHub — Discover Local Shops',
@@ -12,6 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body style={{ margin: 0, padding: 0, backgroundColor: '#FAFAFA', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif' }}>
+        <CartHydrator />
+        <AuthInitializer />
         <Navbar />
         <main style={{ flex: 1 }}>
           {children}

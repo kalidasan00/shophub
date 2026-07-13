@@ -9,10 +9,17 @@ import useAuthStore from '@/store/useAuthStore'
 import { ordersAPI } from '@/lib/api'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
+// Fix: card and UPI were previously selectable and would happily create
+// a real order with paymentMethod: 'card' — with no card form anywhere,
+// no gateway integration, and no charge ever actually happening. That's
+// a real order sitting in the system looking like a paid card
+// transaction when nothing was collected. Both are shown but disabled
+// with a "Coming soon" note until real payment integration exists —
+// remove `disabled` here once that's built.
 const paymentMethods = [
-  { value: 'card', label: 'Credit / Debit Card', icon: <CreditCard size={17} strokeWidth={1.5} /> },
-  { value: 'upi',  label: 'UPI',                  icon: <Smartphone  size={17} strokeWidth={1.5} /> },
-  { value: 'cod',  label: 'Cash on Delivery',     icon: <Banknote    size={17} strokeWidth={1.5} /> },
+  { value: 'card', label: 'Credit / Debit Card', icon: <CreditCard size={17} strokeWidth={1.5} />, disabled: true },
+  { value: 'upi',  label: 'UPI',                  icon: <Smartphone  size={17} strokeWidth={1.5} />, disabled: true },
+  { value: 'cod',  label: 'Cash on Delivery',     icon: <Banknote    size={17} strokeWidth={1.5} />, disabled: false },
 ]
 
 export default function CheckoutPage() {
@@ -20,19 +27,23 @@ export default function CheckoutPage() {
   const items = useCartStore((state) => state.items)
   const clearCart = useCartStore((state) => state.clearCart)
   const user = useAuthStore((state) => state.user)
+  const initialized = useAuthStore((state) => state.initialized)
 
   const [address, setAddress] = useState({ street: '', city: '', state: '', zip: '', country: 'India' })
-  const [paymentMethod, setPaymentMethod] = useState('card')
+  const [paymentMethod, setPaymentMethod] = useState('cod') // Fix: default is now the only working option
   const [couponCode, setCouponCode] = useState('')
   const [placing, setPlacing] = useState(false)
-  const [placed, setPlaced] = useState(false)   // ← prevents cart-empty redirect after order
+  const [placed, setPlaced] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!user) router.push('/auth/login?redirect=/checkout')
-  }, [user])
+    // Fix: previously redirected as soon as `user` was null, which is
+    // also true for every page load — including a genuinely logged-in
+    // customer — until checkAuth() actually resolves. Same bug pattern
+    // fixed earlier on AccountPage and the seller dashboard.
+    if (initialized && !user) router.push('/auth/login?redirect=/checkout')
+  }, [user, initialized])
 
-  // Only redirect to cart if order hasn't been placed yet
   useEffect(() => {
     if (items.length === 0 && !placed) router.push('/cart')
   }, [items, placed])
@@ -56,8 +67,14 @@ export default function CheckoutPage() {
         name:     item.name,
         price:    item.price,
         quantity: item.quantity,
-        size:     item.size  || '',
-        color:    item.color || '',
+        // Fix: was reading item.size / item.color, which don't exist on
+        // cart items — the actual fields (set by addItem and every page
+        // that adds to cart) are selectedSize / selectedColor. This was
+        // silently sending empty strings for every order, regardless of
+        // what the customer actually picked — a seller had no way to
+        // know if an order was for size M or XL.
+        selectedSize:  item.selectedSize  || '',
+        selectedColor: item.selectedColor || '',
       }))
       const res = await ordersAPI.create({
         items: orderItems,
@@ -65,7 +82,7 @@ export default function CheckoutPage() {
         paymentMethod,
         couponCode: couponCode || undefined,
       })
-      setPlaced(true)   // ← set BEFORE clearCart so useEffect doesn't redirect to /cart
+      setPlaced(true)
       clearCart()
       router.push(`/orders/${res.data.order._id}?success=1`)
     } catch (err) {
@@ -74,6 +91,7 @@ export default function CheckoutPage() {
     }
   }
 
+  if (!initialized) return null
   if (!user || (items.length === 0 && !placed)) return null
 
   return (
@@ -114,21 +132,29 @@ export default function CheckoutPage() {
                   display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '11px 12px',
                   border: `1px solid ${paymentMethod === method.value ? colors.primary : colors.border}`,
-                  borderRadius: radius.md, cursor: 'pointer',
-                  backgroundColor: paymentMethod === method.value ? colors.primary + '0D' : colors.white,
+                  borderRadius: radius.md,
+                  cursor: method.disabled ? 'not-allowed' : 'pointer',
+                  backgroundColor: method.disabled ? colors.surface : (paymentMethod === method.value ? colors.primary + '0D' : colors.white),
+                  opacity: method.disabled ? 0.55 : 1,
                   transition: transition.base,
                 }}
               >
                 <input
                   type="radio" name="paymentMethod" value={method.value}
                   checked={paymentMethod === method.value}
+                  disabled={method.disabled}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  style={{ accentColor: colors.primary, width: '15px', height: '15px', cursor: 'pointer' }}
+                  style={{ accentColor: colors.primary, width: '15px', height: '15px', cursor: method.disabled ? 'not-allowed' : 'pointer' }}
                 />
                 <span style={{ color: paymentMethod === method.value ? colors.primary : colors.muted, display: 'flex' }}>
                   {method.icon}
                 </span>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: colors.dark }}>{method.label}</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: colors.dark, flex: 1 }}>{method.label}</span>
+                {method.disabled && (
+                  <span style={{ fontSize: '10.5px', fontWeight: 600, color: colors.muted, backgroundColor: colors.border, padding: '2px 7px', borderRadius: radius.full }}>
+                    Coming soon
+                  </span>
+                )}
               </label>
             ))}
           </div>
@@ -138,7 +164,7 @@ export default function CheckoutPage() {
         <Section title={`Order items (${itemCount})`}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {items.map((item) => (
-              <div key={item.id || item._id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div key={`${item.id || item._id}-${item.selectedSize || ''}-${item.selectedColor || ''}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '44px', height: '44px', minWidth: '44px', backgroundColor: colors.surface, border: `1px solid ${colors.border}`, borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {item.images?.[0]
                     ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -149,7 +175,11 @@ export default function CheckoutPage() {
                   <p style={{ fontSize: '12.5px', fontWeight: 500, color: colors.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                     {item.name}
                   </p>
-                  <p style={{ fontSize: '11px', color: colors.muted, margin: 0 }}>Qty: {item.quantity}</p>
+                  <p style={{ fontSize: '11px', color: colors.muted, margin: 0 }}>
+                    Qty: {item.quantity}
+                    {item.selectedSize && ` · Size: ${item.selectedSize}`}
+                    {item.selectedColor && ` · ${item.selectedColor}`}
+                  </p>
                 </div>
                 <span style={{ fontSize: '12.5px', fontWeight: 700, color: colors.dark }}>
                   ₹{Math.round(item.price * item.quantity)}
@@ -198,7 +228,7 @@ export default function CheckoutPage() {
         </p>
       </div>
 
-      {/* Sticky place-order bar — sits above the global bottom tab nav, not underneath it */}
+      {/* Sticky place-order bar */}
       <div style={{ position: 'fixed', bottom: '64px', left: 0, right: 0, backgroundColor: colors.white, borderTop: `1px solid ${colors.border}`, boxShadow: shadow.card, padding: '10px 1rem', zIndex: 20 }}>
         <div style={{ maxWidth: '560px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <p style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: colors.dark }}>₹{Math.round(total)}</p>

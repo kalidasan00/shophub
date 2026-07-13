@@ -1,30 +1,51 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import useAuthStore from '@/store/useAuthStore'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
+  const [formError, setFormError] = useState('')
   const { login, loading, error, clearError, user } = useAuthStore()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Fix: AccountPage (and any other protected page) redirects here with
+  // ?redirect=/wherever-they-were-trying-to-go, but this page previously
+  // ignored that param and always sent the user to '/' after login —
+  // losing their original destination.
+  const redirectTo = searchParams.get('redirect') || '/'
 
   useEffect(() => {
-    if (user) router.push('/')
+    if (user) router.push(redirectTo)
   }, [user])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
     clearError()
+    setFormError('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.email || !form.password) return
+    // Fix: previously silently did nothing if a field was empty — the
+    // user would click "Sign In" and see no feedback at all.
+    if (!form.email || !form.password) {
+      setFormError('Please enter both email and password')
+      return
+    }
     const result = await login(form.email, form.password)
-    if (result.success) router.push('/')
+    if (result.success) router.push(redirectTo)
   }
 
   return (
@@ -48,9 +69,9 @@ export default function LoginPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#111111', marginBottom: '6px' }}>Welcome back</h1>
           <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '1.75rem' }}>Sign in to your ShopHub account</p>
 
-          {error && (
+          {(error || formError) && (
             <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#EF4444' }}>
-              {error}
+              {error || formError}
             </div>
           )}
 
@@ -60,6 +81,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 name="email"
+                autoComplete="email"
                 value={form.email}
                 onChange={handleChange}
                 placeholder="you@example.com"
@@ -78,6 +100,7 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
+                  autoComplete="current-password"
                   value={form.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
@@ -85,7 +108,7 @@ export default function LoginPage() {
                   onFocus={(e) => e.target.style.borderColor = '#6366F1'}
                   onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}
                   style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center' }}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     {showPassword
@@ -106,12 +129,13 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Test accounts hint */}
-          <div style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px', marginTop: '1rem', fontSize: '12px', color: '#6B7280' }}>
-            <p style={{ fontWeight: '600', color: '#111111', marginBottom: '4px' }}>Test Accounts:</p>
-            <p>Customer: customer@shophub.com / customer123</p>
-            <p>Admin: admin@shophub.com / admin123</p>
-          </div>
+          {/* Fix: this block used to show real, working admin/customer
+              credentials to every visitor on the public login page —
+              anyone could log in as admin just by reading this page.
+              Removed entirely. If you want a demo-mode hint for a staging
+              environment, gate it behind an env check, e.g.:
+              {process.env.NEXT_PUBLIC_SHOW_DEMO_CREDS === 'true' && (...)}
+              and make sure that variable is never set to 'true' in production. */}
 
           <p style={{ textAlign: 'center', fontSize: '13px', color: '#6B7280', marginTop: '1.5rem' }}>
             Don't have an account?{' '}

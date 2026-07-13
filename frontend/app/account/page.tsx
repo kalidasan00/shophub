@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  User, Lock, MapPin, Package, ChevronRight, ChevronLeft, Check, AlertCircle,
+  User, Lock, MapPin, Package, ChevronRight, ChevronLeft, ChevronDown, Check, AlertCircle,
   Store, Wallet, Ticket, Headphones, MoreVertical,
 } from 'lucide-react'
 import useAuthStore from '@/store/useAuthStore'
-import { authAPI } from '@/lib/api'
+import { authAPI, shopsAPI } from '@/lib/api'
 import { colors, font, radius, shadow } from '@/lib/styles'
+
+const SELECTED_SHOP_KEY = 'selectedShopId' // same key used on /seller, so the choice stays in sync across both pages
 
 const cardStyle = {
   backgroundColor: colors.white,
@@ -103,19 +105,52 @@ function RowLink({ href, label, Icon }: { href: string; label: string; Icon: any
 export default function AccountPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
+  const initialized = useAuthStore((state: any) => state.initialized)
   const logout = useAuthStore((state: any) => state.logout)
   const [view, setView] = useState<'hub' | 'profile' | 'security' | 'addresses'>('hub')
 
-  useEffect(() => {
-    if (!user) router.push('/auth/login?redirect=/account')
-  }, [user])
+  const [myShops, setMyShops] = useState<any[]>([])
+  const [activeShop, setActiveShop] = useState<any>(null)
 
+  useEffect(() => {
+    // Fix: previously redirected as soon as `user` was null, which was
+    // also true for the brief moment before checkAuth() (triggered from
+    // AuthInitializer on app mount) had actually resolved — bouncing
+    // valid logged-in users to /login on every refresh. Now waits until
+    // the real session check has completed before deciding to redirect.
+    if (initialized && !user) router.push('/auth/login?redirect=/account')
+  }, [user, initialized])
+
+  const isSeller = user?.role === 'shopowner' || user?.role === 'admin'
+
+  useEffect(() => {
+    if (!user || !isSeller) return
+    const loadShops = async () => {
+      try {
+        const res = await shopsAPI.getMine()
+        const shops = res.data.shops || []
+        setMyShops(shops)
+
+        const savedId = typeof window !== 'undefined' ? localStorage.getItem(SELECTED_SHOP_KEY) : null
+        const restored = shops.find((s: any) => s._id === savedId)
+        setActiveShop(restored || shops[0] || null)
+      } catch {
+        // Non-fatal: the switcher just won't render if this fails, hub still works
+      }
+    }
+    loadShops()
+  }, [user, isSeller])
+
+  const handleSwitchShop = (selected: any) => {
+    setActiveShop(selected)
+    if (typeof window !== 'undefined') localStorage.setItem(SELECTED_SHOP_KEY, selected._id)
+  }
+
+  if (!initialized) return null // still verifying session with the server — render nothing rather than flash a redirect
   if (!user) return null
 
-  const isSeller = user.role === 'shopowner' || user.role === 'admin'
-
-  const handleLogout = () => {
-    if (typeof logout === 'function') logout()
+  const handleLogout = async () => {
+    if (typeof logout === 'function') await logout()
     router.push('/')
   }
 
@@ -168,11 +203,21 @@ export default function AccountPage() {
 
         {view === 'hub' && (
           <>
+            {/* Active shop switcher — Instagram/Facebook-style: shows the active
+                account, tap to see and switch to any other shop this user owns.
+                Only rendered for sellers who own more than one shop. */}
+            {isSeller && myShops.length > 1 && activeShop && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <p style={sectionLabelStyle}>Active shop</p>
+                <ShopSwitcher shops={myShops} activeShop={activeShop} onSwitch={handleSwitchShop} />
+              </div>
+            )}
+
             <p style={sectionLabelStyle}>Orders and payments</p>
             <div style={{ marginBottom: '1.5rem' }}>
               <RowLink href="/orders" label="Orders" Icon={Package} />
-              <RowLink href="/wallet" label="Wallet" Icon={Wallet} />
-              <RowLink href="/coupons" label="Coupons" Icon={Ticket} />
+              <RowLink href="/account/wallet" label="Wallet" Icon={Wallet} />
+              <RowLink href="/account/coupons" label="Coupons" Icon={Ticket} />
             </div>
 
             <p style={sectionLabelStyle}>Account settings</p>
@@ -198,6 +243,109 @@ export default function AccountPage() {
         {view === 'security'  && <SecurityTab  />}
         {view === 'addresses' && <AddressesTab user={user} />}
       </div>
+    </div>
+  )
+}
+
+/* ── Shop Switcher (Instagram/Facebook-style active account switcher) ── */
+function ShopSwitcher({ shops, activeShop, onSwitch }: { shops: any[]; activeShop: any; onSwitch: (s: any) => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: '100%',
+          display: 'flex', alignItems: 'center', gap: '12px',
+          backgroundColor: colors.white,
+          border: `1px solid ${colors.border}`,
+          borderRadius: radius.lg,
+          padding: '12px 14px',
+          cursor: 'pointer',
+          fontFamily: font.family,
+          boxShadow: shadow.card,
+        }}
+      >
+        <div style={{
+          width: '38px', height: '38px', minWidth: '38px', borderRadius: '50%',
+          background: `linear-gradient(${activeShop.gradient?.direction || '135deg'}, ${activeShop.gradient?.from || colors.primary}, ${activeShop.gradient?.to || colors.primary})`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '18px',
+        }}>
+          {activeShop.icon || '🛍️'}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <p style={{ fontSize: font.base, fontWeight: '600', color: colors.dark, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {activeShop.name}
+          </p>
+          <p style={{ fontSize: '12px', color: colors.muted, margin: '1px 0 0' }}>{activeShop.category} · Active</p>
+        </div>
+
+        <ChevronDown size={18} color={colors.muted} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away backdrop */}
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+            backgroundColor: colors.white,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.lg,
+            boxShadow: shadow.card,
+            zIndex: 20,
+            overflow: 'hidden',
+          }}>
+            <p style={{
+              fontSize: '11px', fontWeight: '600', color: colors.muted,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              margin: 0, padding: '10px 14px 6px',
+            }}>
+              Switch shop
+            </p>
+
+            {shops.map((s) => {
+              const isActive = s._id === activeShop._id
+              return (
+                <button
+                  key={s._id}
+                  onClick={() => { onSwitch(s); setOpen(false) }}
+                  style={{
+                    width: '100%',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 14px',
+                    background: isActive ? colors.primaryLight : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: font.family,
+                  }}
+                >
+                  <div style={{
+                    width: '30px', height: '30px', minWidth: '30px', borderRadius: '50%',
+                    background: `linear-gradient(${s.gradient?.direction || '135deg'}, ${s.gradient?.from || colors.primary}, ${s.gradient?.to || colors.primary})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '15px',
+                  }}>
+                    {s.icon || '🛍️'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: '600', color: colors.dark, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.name}
+                    </p>
+                    <p style={{ fontSize: '11px', color: colors.muted, margin: '1px 0 0' }}>{s.category}</p>
+                  </div>
+                  {isActive && <Check size={16} color={colors.primary} />}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }

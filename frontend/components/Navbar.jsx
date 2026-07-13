@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import useCartStore from '@/store/useCartStore'
@@ -14,14 +14,17 @@ export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const totalItems = useCartStore((state) => state.getTotalItems())
-  const { user, logout, init } = useAuthStore()
+  // Fix: this component used to call init() itself on mount, reading the
+  // token straight out of localStorage. That function no longer exists
+  // on the store (crashed with "init is not a function") — session
+  // verification is now handled once, globally, by <AuthInitializer />
+  // in app/layout.tsx, which calls the new checkAuth() against the
+  // server instead. Navbar just reads whatever `user` the store already
+  // has; no effect needed here.
+  const { user, logout } = useAuthStore()
 
-  useEffect(() => {
-    init()
-  }, [])
-
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     setProfileOpen(false)
     router.push('/')
   }

@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [agree, setAgree] = useState(false)
+  const [formError, setFormError] = useState('')
   const { register, loading, error, clearError, user } = useAuthStore()
   const router = useRouter()
 
@@ -19,13 +20,30 @@ export default function RegisterPage() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
     clearError()
+    setFormError('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.email || !form.password || !form.confirm) return
-    if (form.password !== form.confirm) return
-    if (!agree) return
+    // Fix: all four of these used to silently `return` with zero
+    // feedback — the user would click "Create Account" and nothing
+    // would visibly happen, no indication of what was wrong.
+    if (!form.name || !form.email || !form.password || !form.confirm) {
+      setFormError('Please fill in all fields')
+      return
+    }
+    if (form.password !== form.confirm) {
+      setFormError('Passwords do not match')
+      return
+    }
+    if (form.password.length < 6) {
+      setFormError('Password must be at least 6 characters')
+      return
+    }
+    if (!agree) {
+      setFormError('Please agree to the Terms and Privacy Policy to continue')
+      return
+    }
     const result = await register(form.name, form.email, form.password)
     if (result.success) router.push('/')
   }
@@ -35,6 +53,13 @@ export default function RegisterPage() {
     padding: '11px 14px', fontSize: '14px', fontFamily: 'Inter, sans-serif',
     outline: 'none', color: '#111111', backgroundColor: 'white', boxSizing: 'border-box',
   }
+
+  // Fix: previously judged "strong" purely on length (e.g. "aaaaaaaa"
+  // showed a green "✓ Strong password"). Now also checks for a mix of
+  // letters and numbers, which is a more honest (if still basic) signal.
+  const hasLetter = /[a-zA-Z]/.test(form.password)
+  const hasNumber = /[0-9]/.test(form.password)
+  const isStrong = form.password.length >= 8 && hasLetter && hasNumber
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
@@ -55,16 +80,16 @@ export default function RegisterPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#111111', marginBottom: '6px' }}>Create account</h1>
           <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '1.75rem' }}>Join ShopHub and start exploring</p>
 
-          {error && (
+          {(error || formError) && (
             <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', padding: '10px 14px', marginBottom: '1rem', fontSize: '13px', color: '#EF4444' }}>
-              {error}
+              {error || formError}
             </div>
           )}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#111111', marginBottom: '6px' }}>Full Name</label>
-              <input type="text" name="name" value={form.name} onChange={handleChange} placeholder="John Doe"
+              <input type="text" name="name" autoComplete="name" value={form.name} onChange={handleChange} placeholder="John Doe"
                 style={inputStyle}
                 onFocus={(e) => e.target.style.borderColor = '#6366F1'}
                 onBlur={(e) => e.target.style.borderColor = '#E5E7EB'} />
@@ -72,7 +97,7 @@ export default function RegisterPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#111111', marginBottom: '6px' }}>Email address</label>
-              <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="you@example.com"
+              <input type="email" name="email" autoComplete="email" value={form.email} onChange={handleChange} placeholder="you@example.com"
                 style={inputStyle}
                 onFocus={(e) => e.target.style.borderColor = '#6366F1'}
                 onBlur={(e) => e.target.style.borderColor = '#E5E7EB'} />
@@ -81,11 +106,11 @@ export default function RegisterPage() {
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#111111', marginBottom: '6px' }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange} placeholder="Min 6 characters"
+                <input type={showPassword ? 'text' : 'password'} name="password" autoComplete="new-password" value={form.password} onChange={handleChange} placeholder="Min 6 characters"
                   style={{ ...inputStyle, paddingRight: '42px' }}
                   onFocus={(e) => e.target.style.borderColor = '#6366F1'}
                   onBlur={(e) => e.target.style.borderColor = '#E5E7EB'} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}
                   style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center' }}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -97,11 +122,11 @@ export default function RegisterPage() {
                 <div style={{ marginTop: '8px' }}>
                   <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
                     {[1,2,3,4].map((i) => (
-                      <div key={i} style={{ flex: 1, height: '3px', borderRadius: '99px', backgroundColor: form.password.length >= i * 2 ? (form.password.length >= 8 ? '#22C55E' : '#F59E0B') : '#E5E7EB', transition: 'background-color 0.3s' }} />
+                      <div key={i} style={{ flex: 1, height: '3px', borderRadius: '99px', backgroundColor: form.password.length >= i * 2 ? (isStrong ? '#22C55E' : '#F59E0B') : '#E5E7EB', transition: 'background-color 0.3s' }} />
                     ))}
                   </div>
-                  <p style={{ fontSize: '11px', color: form.password.length >= 8 ? '#22C55E' : '#F59E0B' }}>
-                    {form.password.length >= 8 ? '✓ Strong password' : 'Keep typing for stronger password'}
+                  <p style={{ fontSize: '11px', color: isStrong ? '#22C55E' : '#F59E0B' }}>
+                    {isStrong ? '✓ Strong password' : 'Use 8+ characters with letters and numbers'}
                   </p>
                 </div>
               )}
@@ -109,7 +134,7 @@ export default function RegisterPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#111111', marginBottom: '6px' }}>Confirm Password</label>
-              <input type="password" name="confirm" value={form.confirm} onChange={handleChange} placeholder="Repeat your password"
+              <input type="password" name="confirm" autoComplete="new-password" value={form.confirm} onChange={handleChange} placeholder="Repeat your password"
                 style={{ ...inputStyle, borderColor: form.confirm && form.confirm !== form.password ? '#EF4444' : '#E5E7EB' }}
                 onFocus={(e) => e.target.style.borderColor = '#6366F1'}
                 onBlur={(e) => e.target.style.borderColor = form.confirm && form.confirm !== form.password ? '#EF4444' : '#E5E7EB'} />
@@ -119,7 +144,7 @@ export default function RegisterPage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <input type="checkbox" id="agree" checked={agree} onChange={(e) => setAgree(e.target.checked)}
+              <input type="checkbox" id="agree" checked={agree} onChange={(e) => { setAgree(e.target.checked); setFormError('') }}
                 style={{ width: '16px', height: '16px', accentColor: '#6366F1', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }} />
               <label htmlFor="agree" style={{ fontSize: '13px', color: '#6B7280', cursor: 'pointer', lineHeight: '1.5' }}>
                 I agree to the{' '}
