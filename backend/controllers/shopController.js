@@ -40,6 +40,22 @@ exports.getShops = async (req, res) => {
   })
 }
 
+// @route   GET /api/shops/mine
+// Returns ALL shops owned by the logged-in user (active or not),
+// so the user can see/switch to a deactivated shop too — unlike
+// the public getShops route which filters isActive:true and paginates.
+exports.getMyShops = async (req, res) => {
+  const shops = await Shop.find({ owner: req.user.id })
+    .populate('productCount')
+    .sort({ createdAt: -1 })
+
+  res.status(200).json({
+    success: true,
+    count: shops.length,
+    shops,
+  })
+}
+
 // @route   GET /api/shops/:id
 exports.getShop = async (req, res) => {
   const shop = await Shop.findById(req.params.id)

@@ -3,6 +3,7 @@ require('dotenv').config()
 
 const express = require('express')
 const cors = require('cors')
+const cookieParser = require('cookie-parser')
 const connectDB = require('./config/db')
 const errorHandler = require('./middleware/errorHandler')
 
@@ -35,6 +36,13 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+// Fix: this was missing entirely. Without it, req.cookies is always
+// undefined, so protect() in middleware/auth.js could never read the
+// token cookie — every authenticated request fell through to checking
+// the Authorization header (which the frontend no longer sends) and
+// returned 401, even with a perfectly valid cookie sitting in the
+// browser. Must be registered before any route that uses protect().
+app.use(cookieParser())
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -15,8 +15,19 @@ const generateToken = (id) => {
 // now set as an httpOnly cookie instead — JavaScript on the page can't
 // access it at all, even if an XSS hole exists elsewhere on the site.
 // `secure` is on in production so the cookie only ever travels over
-// HTTPS; `sameSite: 'strict'` blocks it being sent on cross-site
-// requests, which also covers most CSRF scenarios for free.
+// HTTPS.
+//
+// Fix: sameSite was 'strict', which is the most restrictive setting —
+// across browsers this is known to unreliably block the cookie from
+// being sent on requests between different ports on localhost (e.g.
+// frontend on :3000, backend on :5000), even though they share the
+// same domain. That's exactly this setup, and it's why login appeared
+// to succeed (200 + user in the response) but every subsequent request
+// came back 401 — the cookie was set but the browser wouldn't attach it
+// on the next request. 'lax' still blocks genuinely cross-site requests
+// (CSRF protection intact) but works reliably for this same-domain,
+// different-port local dev setup. This is the standard recommendation
+// for this exact frontend/backend split.
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // keep in sync with JWT_EXPIRE
 
 const sendToken = (user, statusCode, res) => {
@@ -25,7 +36,7 @@ const sendToken = (user, statusCode, res) => {
   res.cookie('token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE_MS,
   })
 
@@ -93,7 +104,7 @@ exports.logout = asyncHandler(async (req, res) => {
   res.cookie('token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     expires: new Date(0),
   })
   res.status(200).json({ success: true, message: 'Logged out' })
