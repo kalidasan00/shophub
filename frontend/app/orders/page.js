@@ -40,25 +40,35 @@ function OrdersPageFallback() {
 function OrdersPageContent() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
+  const initialized = useAuthStore((state) => state.initialized)
 
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    // Fix: same recurring bug — redirected on the initial `user === null`
+    // that's true for every page load until checkAuth() resolves,
+    // bouncing genuinely logged-in customers off their own order history.
+    if (!initialized) return
     if (!user) { router.push('/auth/login?redirect=/orders'); return }
+
+    let cancelled = false
     const fetchOrders = async () => {
       try {
         const res = await ordersAPI.getMyOrders()
-        setOrders(res.data.orders || [])
+        if (!cancelled) setOrders(res.data.orders || [])
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load orders')
-      } finally { setLoading(false) }
+        if (!cancelled) setError(err.response?.data?.message || 'Failed to load orders')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     fetchOrders()
-  }, [user])
+    return () => { cancelled = true }
+  }, [user, initialized])
 
-  if (!user) return null
+  if (!initialized || !user) return null
 
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto', padding: '1.5rem 1.25rem 5rem', fontFamily: font.family }}>
@@ -160,8 +170,10 @@ function OrderRow({ order }) {
           <span style={{ fontSize: '11px', fontWeight: 700, backgroundColor: status.bg, color: status.text, padding: '4px 10px', borderRadius: radius.full, whiteSpace: 'nowrap' }}>
             {status.label}
           </span>
+          {/* Fix: was a hardcoded $ — inconsistent with ₹ used everywhere
+              else in the app (cart, checkout, order detail page). */}
           <span style={{ fontSize: font.base, fontWeight: 700, color: colors.dark, whiteSpace: 'nowrap' }}>
-            ${order.total.toFixed(2)}
+            ₹{Math.round(order.total)}
           </span>
           <ChevronRight size={16} color={colors.muted} strokeWidth={2} />
         </div>

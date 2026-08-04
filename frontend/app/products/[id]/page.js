@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { use } from 'react'
 import { productsAPI } from '@/lib/api'
 import useCartStore from '@/store/useCartStore'
+import useAuthStore from '@/store/useAuthStore'
 import { colors, font, radius, shadow, transition } from '@/lib/styles'
 
 function Stars({ rating, size = 14 }) {
@@ -24,6 +25,104 @@ function Pill({ label, color = colors.primary, bg = colors.primaryLight }) {
     <span style={{ fontSize: '10.5px', fontWeight: '600', color, backgroundColor: bg, padding: '3px 8px', borderRadius: radius.full, fontFamily: font.family, letterSpacing: '0.02em' }}>
       {label}
     </span>
+  )
+}
+
+function ReviewForm({ productId, onSubmitted }) {
+  const user = useAuthStore((state) => state.user)
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+
+  if (!user) {
+    return (
+      <div style={{ backgroundColor: colors.surface, borderRadius: '10px', padding: '14px', textAlign: 'center', marginBottom: '10px' }}>
+        <p style={{ fontSize: '12.5px', color: colors.muted, margin: 0 }}>
+          <Link href={`/auth/login?redirect=/products/${productId}`} style={{ color: colors.primary, fontWeight: 600, textDecoration: 'none' }}>
+            Log in
+          </Link>{' '}
+          to write a review.
+        </p>
+      </div>
+    )
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (rating === 0) { setError('Please select a star rating'); return }
+    if (!comment.trim()) { setError('Please write a comment'); return }
+    setError(null)
+    setSubmitting(true)
+    try {
+      await productsAPI.addReview(productId, { rating, comment: comment.trim() })
+      onSubmitted({ _id: `temp-${Date.now()}`, name: user.name, rating, comment: comment.trim(), createdAt: new Date().toISOString() })
+      setRating(0)
+      setComment('')
+    } catch (err) {
+      // Backend returns 400 "Already reviewed" if this user already left
+      // one — surface that directly instead of a generic failure.
+      setError(err.response?.data?.message || 'Failed to submit review')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '14px', marginBottom: '10px' }}>
+      <p style={{ margin: '0 0 8px', fontSize: '12.5px', fontWeight: 700, color: colors.dark }}>Write a review</p>
+
+      <div style={{ display: 'flex', gap: '3px', marginBottom: '10px' }}>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => { setRating(s); setError(null) }}
+            onMouseEnter={() => setHoverRating(s)}
+            onMouseLeave={() => setHoverRating(0)}
+            aria-label={`Rate ${s} star${s > 1 ? 's' : ''}`}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" style={{ fill: s <= (hoverRating || rating) ? '#FBBF24' : '#E5E7EB', transition: transition.base }}>
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        value={comment}
+        onChange={(e) => { setComment(e.target.value); setError(null) }}
+        placeholder="Share your thoughts on this product..."
+        rows={3}
+        style={{
+          width: '100%', border: `1px solid ${colors.border}`, borderRadius: radius.sm,
+          padding: '9px 11px', fontSize: '12.5px', fontFamily: font.family,
+          outline: 'none', color: colors.dark, resize: 'vertical', boxSizing: 'border-box',
+          marginBottom: '10px',
+        }}
+        onFocus={(e) => e.target.style.borderColor = colors.primary}
+        onBlur={(e) => e.target.style.borderColor = colors.border}
+      />
+
+      {error && (
+        <p style={{ fontSize: '11.5px', color: '#EF4444', margin: '0 0 10px' }}>{error}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={submitting}
+        style={{
+          padding: '9px 18px', borderRadius: radius.md, border: 'none',
+          backgroundColor: submitting ? '#A5B4FC' : colors.primary, color: '#fff',
+          fontSize: '12.5px', fontWeight: 700, fontFamily: font.family,
+          cursor: submitting ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {submitting ? 'Submitting...' : 'Submit review'}
+      </button>
+    </form>
   )
 }
 
@@ -106,6 +205,20 @@ export default function ProductPage({ params }) {
     )
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
+  }
+
+  // New: called after a review is successfully submitted. Updates the
+  // product in local state immediately (new review appended, rating/
+  // numReviews recalculated) so the UI reflects it instantly instead of
+  // requiring a full page refresh — the actual source of truth is still
+  // the backend, this is just an optimistic local mirror of it.
+  const handleReviewSubmitted = (newReview) => {
+    setProduct((prev) => {
+      const reviews = [newReview, ...(prev.reviews || [])]
+      const numReviews = reviews.length
+      const rating = reviews.reduce((sum, r) => sum + r.rating, 0) / numReviews
+      return { ...prev, reviews, numReviews, rating }
+    })
   }
 
   // Fix: previously had no onClick at all — a completely dead button.
@@ -472,6 +585,7 @@ export default function ProductPage({ params }) {
                 populated with reviewer names via the backend). */}
             {activeTab === 'reviews' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '600px' }}>
+                <ReviewForm productId={product._id} onSubmitted={handleReviewSubmitted} />
                 {product.reviews?.length > 0 ? (
                   product.reviews.map((review) => (
                     <div key={review._id} style={{ backgroundColor: colors.surface, borderRadius: '10px', padding: '10px 12px' }}>

@@ -36,6 +36,7 @@ function OrderDetailContent({ params }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const user = useAuthStore((state) => state.user)
+  const initialized = useAuthStore((state) => state.initialized)
 
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -44,19 +45,29 @@ function OrderDetailContent({ params }) {
   const isSuccess = searchParams.get('success') === '1'
 
   useEffect(() => {
-    if (!user) { router.push('/auth/login'); return }
-    const fetch = async () => {
+    // Fix: same recurring bug as AccountPage/checkout — redirected as
+    // soon as `user` was null, which is also true before checkAuth()
+    // resolves on every page load, bouncing a genuinely logged-in
+    // customer right off their own order confirmation page.
+    if (!initialized) return
+    if (!user) { router.push(`/auth/login?redirect=/orders/${id}`); return }
+
+    let cancelled = false
+    const fetchOrder = async () => {
       try {
         const res = await ordersAPI.getOne(id)
-        setOrder(res.data.order)
+        if (!cancelled) setOrder(res.data.order)
       } catch (err) {
-        setError(err.response?.data?.message || 'Order not found')
-      } finally { setLoading(false) }
+        if (!cancelled) setError(err.response?.data?.message || 'Order not found')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    fetch()
-  }, [user, id])
+    fetchOrder()
+    return () => { cancelled = true }
+  }, [user, initialized, id])
 
-  if (!user) return null
+  if (!initialized || !user) return null
   if (loading) return <PageSkeleton />
 
   if (error) return (
@@ -122,7 +133,6 @@ function OrderDetailContent({ params }) {
                 const active = stepIndex === idx
                 return (
                   <div key={step} style={{ display: 'flex', alignItems: 'center', flex: idx < steps.length - 1 ? 1 : 0 }}>
-                    {/* Circle */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                       <div style={{
                         width: active ? '28px' : '22px',
@@ -140,7 +150,6 @@ function OrderDetailContent({ params }) {
                         {step}
                       </span>
                     </div>
-                    {/* Line */}
                     {idx < steps.length - 1 && (
                       <div style={{ flex: 1, height: '2px', backgroundColor: stepIndex > idx ? colors.primary : colors.border, margin: '0 4px', marginBottom: '18px', transition: transition.base }} />
                     )}
@@ -177,14 +186,22 @@ function OrderDetailContent({ params }) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: font.base, fontWeight: 600, color: colors.dark, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+                  {/* Fix: was item.size / item.color, fields that don't
+                      exist on the order — the checkout fix that saves
+                      selectedSize/selectedColor to the backend needs a
+                      matching read here, same field name end to end. */}
                   <p style={{ fontSize: font.sm, color: colors.muted, margin: '2px 0 0' }}>
                     Qty: {item.quantity}
-                    {item.size  && ` · ${item.size}`}
-                    {item.color && ` · ${item.color}`}
+                    {item.selectedSize  && ` · ${item.selectedSize}`}
+                    {item.selectedColor && ` · ${item.selectedColor}`}
                   </p>
                 </div>
+                {/* Fix: was a hardcoded $ — every other page in the app
+                    (cart, checkout, product cards) shows ₹. A customer
+                    paying in rupees at checkout saw dollars on their own
+                    order confirmation for the same purchase. */}
                 <span style={{ fontSize: font.base, fontWeight: 700, color: colors.dark, flexShrink: 0 }}>
-                  ${(item.price * item.quantity).toFixed(2)}
+                  ₹{Math.round(item.price * item.quantity)}
                 </span>
               </div>
             ))}
@@ -194,18 +211,18 @@ function OrderDetailContent({ params }) {
         {/* ── Price breakdown ── */}
         <div style={{ backgroundColor: colors.white, borderRadius: radius.xxl, border: `1px solid ${colors.border}`, padding: '1.25rem', marginBottom: '1rem', boxShadow: shadow.card }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: font.sm }}>
-            <Row label="Subtotal" value={`$${order.subtotal.toFixed(2)}`} />
+            <Row label="Subtotal" value={`₹${Math.round(order.subtotal)}`} />
             {order.discount > 0 && (
-              <Row label={`Discount${order.couponCode ? ` (${order.couponCode})` : ''}`} value={`−$${order.discount.toFixed(2)}`} green />
+              <Row label={`Discount${order.couponCode ? ` (${order.couponCode})` : ''}`} value={`−₹${Math.round(order.discount)}`} green />
             )}
             <Row
               label="Shipping"
-              value={order.shippingCost === 0 ? 'Free' : `$${order.shippingCost.toFixed(2)}`}
+              value={order.shippingCost === 0 ? 'Free' : `₹${order.shippingCost.toFixed(2)}`}
               green={order.shippingCost === 0}
             />
             <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: font.base }}>
               <span style={{ color: colors.dark }}>Total</span>
-              <span style={{ color: colors.dark }}>${order.total.toFixed(2)}</span>
+              <span style={{ color: colors.dark }}>₹{Math.round(order.total)}</span>
             </div>
           </div>
         </div>
@@ -257,7 +274,6 @@ function OrderDetailContent({ params }) {
   )
 }
 
-/* ── Helpers ── */
 function Row({ label, value, green }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
